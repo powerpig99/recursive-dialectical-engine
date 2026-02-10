@@ -20,7 +20,7 @@ from .harness import format_results_table, run_ablation, save_results_json
 MODEL_FAMILIES = {
     "claude": "claude-sonnet-4-5-20250929",
     "gemini": "gemini-2.5-pro",
-    "grok": "grok-3",
+    "grok": "grok-4-1-fast-reasoning",
 }
 
 

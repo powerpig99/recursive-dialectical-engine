@@ -6,7 +6,7 @@ to find which pairings produce the highest trace independence.
 Available models (no OpenAI key):
   - claude-sonnet-4-5
   - gemini-2.5-pro
-  - grok-3
+  - grok-4-1-fast-reasoning
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from .harness import format_results_table, run_ablation, save_results_json
 AVAILABLE_MODELS = {
     "claude": "claude-sonnet-4-5-20250929",
     "gemini": "gemini-2.5-pro",
-    "grok": "grok-3",
+    "grok": "grok-4-1-fast-reasoning",
 }
 
 

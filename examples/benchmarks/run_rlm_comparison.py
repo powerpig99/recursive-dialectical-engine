@@ -37,6 +37,7 @@ async def run_single_config(
     execution_mode = run_opts.get("execution_mode", "direct")
     use_orchestrator = run_opts.get("use_orchestrator", True)
     max_iterations = run_opts.get("max_iterations", 1)
+    num_traces = run_opts.get("num_traces")
 
     runner = BenchmarkRunner(
         engine_config=model_config,
@@ -45,15 +46,24 @@ async def run_single_config(
         use_orchestrator=use_orchestrator,
         max_iterations=max_iterations,
         max_cost_usd=max_cost,
+        num_traces=num_traces,
     )
 
     results: dict[str, BenchmarkResult] = {}
 
     if benchmark in ("oolong", "all"):
         logger.info("Running OOLONG benchmark for %s...", name)
+        # Map approximate token counts to exact powers of 2 for oolong-synth
+        context_len_map = {
+            1000: 1024, 2000: 2048, 4000: 4096, 8000: 8192,
+            16000: 16384, 32000: 32768, 64000: 65536,
+            131000: 131072, 131072: 131072, 262000: 262144,
+            524000: 524288, 1048000: 1048576,
+        }
+        oolong_ctx = context_len_map.get(context_size, context_size)
         results["oolong"] = await runner.run_oolong(
-            context_size=context_size,
-            num_tasks=max_tasks,
+            context_len=oolong_ctx,
+            max_tasks=max_tasks,
         )
         logger.info("OOLONG: %.1f%% accuracy", results["oolong"].aggregate_score)
 

@@ -5,7 +5,7 @@ projections than same-model traces, leading to higher-quality arbitration.
 
 Compares:
   - same_model: All traces use claude-sonnet-4-5
-  - cross_model: Traces use claude-sonnet-4-5, gemini-2.5-pro, grok-3
+  - cross_model: Traces use claude-sonnet-4-5, gemini-2.5-pro, grok-4-1-fast-reasoning
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ async def main() -> None:
         trace_models=[
             "claude-sonnet-4-5-20250929",
             "gemini-2.5-pro",
-            "grok-3",
+            "grok-4-1-fast-reasoning",
         ],
     )
 

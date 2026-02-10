@@ -27,7 +27,7 @@ async def main() -> None:
         trace_models=[
             "claude-sonnet-4-5-20250929",
             "gemini-2.5-pro",
-            "grok-3",
+            "grok-4-1-fast-reasoning",
         ],
     )
 
@@ -36,7 +36,7 @@ async def main() -> None:
         trace_models=[
             "claude-sonnet-4-5-20250929",
             "gemini-2.5-pro",
-            "grok-3",
+            "grok-4-1-fast-reasoning",
         ],
     )
 

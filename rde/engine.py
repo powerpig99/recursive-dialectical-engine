@@ -54,6 +54,8 @@ class DialecticalEngine:
         use_orchestrator: bool = True,
         max_iterations: int = 1,
         budget: RecursionBudget | None = None,
+        num_traces: int | None = None,
+        execution_mode: str | None = None,
     ) -> EngineResult:
         """Execute the full dialectical reasoning pipeline.
 
@@ -92,9 +94,13 @@ class DialecticalEngine:
 
             # Step 1: Design traces
             trace_configs = await self._design_traces(
-                orchestrator, env, last_arbitration, iteration
+                orchestrator, env, last_arbitration, iteration, num_traces=num_traces
             )
-            logger.info("Designed %d traces", len(trace_configs))
+            # Apply execution_mode override if specified
+            if execution_mode is not None:
+                for tc in trace_configs:
+                    tc.execution_mode = execution_mode
+            logger.info("Designed %d traces (mode=%s)", len(trace_configs), execution_mode or "default")
 
             # Step 2: Assign models
             assigned_models = self.router.assign_trace_models(trace_configs)
@@ -214,10 +220,14 @@ class DialecticalEngine:
         env: ContextEnvironment,
         prior_arbitration,
         iteration: int,
+        num_traces: int | None = None,
     ) -> list[TraceConfig]:
         """Design traces for this iteration, using reframing if applicable."""
         if orchestrator is None:
-            return [TraceConfig.model_validate(t) for t in DEFAULT_STRUCTURED_TRACES]
+            traces = [TraceConfig.model_validate(t) for t in DEFAULT_STRUCTURED_TRACES]
+            if num_traces is not None and num_traces < len(traces):
+                traces = traces[:num_traces]
+            return traces
 
         if iteration == 0 or prior_arbitration is None:
             return await orchestrator.design_traces(env)

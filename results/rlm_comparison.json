@@ -1,0 +1,33 @@
+{
+  "vanilla_base_claude/oolong_pairs": {
+    "benchmark_name": "oolong_pairs",
+    "config_name": "Base model (claude-sonnet-4-5-20250929)",
+    "aggregate_score": 100.0,
+    "aggregate_metric": "f1",
+    "num_tasks": 5,
+    "total_latency_ms": 73545.91908305883,
+    "total_llm_calls": 5,
+    "task_scores": [
+      {
+        "task_id": "oolong_pairs_001",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_pairs_002",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_pairs_003",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_pairs_004",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_pairs_005",
+        "score": 1.0
+      }
+    ]
+  }
+}
