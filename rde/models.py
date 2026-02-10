@@ -210,5 +210,9 @@ class ModelConfig(BaseModel):
     orchestrator_temperature: float = 0.3
     sub_lm_temperature: float = 0.3
 
-    # Local model path (for MLX provider)
+    # Local inference server (vLLM-mlx, LM Studio, Ollama)
+    local_server_url: str = "http://localhost:8000/v1"
+    local_model_name: str = "default"
+
+    # Legacy: direct MLX model path (deprecated, use vLLM-mlx server instead)
     local_model_path: str = "~/Models/Qwen3-8B-4bit"
