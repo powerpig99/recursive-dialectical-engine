@@ -54,9 +54,31 @@ class ContextEnvironment:
         """View a character slice of the prompt without loading full context."""
         return self.prompt_var[start:end]
 
+    def peek_lines(self, start_line: int, end_line: int) -> str:
+        """View a line range of the prompt (1-indexed, inclusive).
+
+        More intuitive than character offsets for LLM-generated code.
+        """
+        lines = self.prompt_var.split("\n")
+        start_idx = max(0, start_line - 1)
+        end_idx = min(len(lines), end_line)
+        return "\n".join(lines[start_idx:end_idx])
+
     def search(self, pattern: str) -> list[str]:
         """Regex search over the prompt. Returns all matches."""
         return re.findall(pattern, self.prompt_var)
+
+    def search_lines(self, pattern: str) -> list[tuple[int, str]]:
+        """Search for a pattern and return matching lines with line numbers.
+
+        Returns list of (line_number, line_content) tuples (1-indexed).
+        """
+        results = []
+        compiled = re.compile(pattern)
+        for i, line in enumerate(self.prompt_var.split("\n"), start=1):
+            if compiled.search(line):
+                results.append((i, line))
+        return results
 
     def partition(self, strategy: str = "structural") -> list[str]:
         """Decompose prompt into independent partitions.

@@ -21,12 +21,52 @@ def test_peek():
     assert peeked == "You are on a game sh"
 
 
+def test_peek_lines():
+    env = ContextEnvironment(SAMPLE_PROMPT)
+    # Lines 1-1 should be the first line
+    first_line = env.peek_lines(1, 1)
+    assert first_line == "You are on a game show with 3 doors."
+
+
+def test_peek_lines_range():
+    env = ContextEnvironment(SAMPLE_PROMPT)
+    # Lines 5-7 should cover the numbered list
+    result = env.peek_lines(5, 7)
+    assert "1. You pick Door 1." in result
+    assert "2. The host opens Door 2." in result
+    assert "3. Door 2 reveals a Goat." in result
+
+
+def test_peek_lines_clamps():
+    env = ContextEnvironment("line1\nline2\nline3")
+    # Out-of-range is clamped
+    result = env.peek_lines(1, 100)
+    assert "line1" in result
+    assert "line3" in result
+
+
 def test_search():
     env = ContextEnvironment(SAMPLE_PROMPT)
     matches = env.search(r"Door \d")
     assert len(matches) == 3
     assert "Door 1" in matches
     assert "Door 2" in matches
+
+
+def test_search_lines():
+    env = ContextEnvironment(SAMPLE_PROMPT)
+    results = env.search_lines(r"Door \d")
+    assert len(results) == 3
+    # Each result is (line_number, line_content)
+    line_numbers = [r[0] for r in results]
+    assert all(isinstance(n, int) for n in line_numbers)
+    assert all("Door" in r[1] for r in results)
+
+
+def test_search_lines_no_match():
+    env = ContextEnvironment(SAMPLE_PROMPT)
+    results = env.search_lines(r"unicorn")
+    assert results == []
 
 
 def test_partition_structural():

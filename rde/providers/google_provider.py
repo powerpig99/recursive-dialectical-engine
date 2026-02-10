@@ -14,6 +14,13 @@ class GoogleProvider(BaseProvider):
     Uses the google-generativeai SDK. Converts messages to Gemini's Content format.
     """
 
+    # Per-million-token pricing: (input, output)
+    COSTS: dict[str, tuple[float, float]] = {
+        "gemini-2.5-pro": (1.25, 10.0),
+        "gemini-2.5-flash": (0.15, 0.60),
+        "gemini-2.0-flash": (0.10, 0.40),
+    }
+
     def __init__(self) -> None:
         from google import generativeai as genai
 
@@ -59,20 +66,37 @@ class GoogleProvider(BaseProvider):
 
         content = response.text if response.text else ""
         usage = {}
+        estimated_cost = 0.0
         if hasattr(response, "usage_metadata") and response.usage_metadata:
+            prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+            completion_tokens = getattr(
+                response.usage_metadata, "candidates_token_count", 0
+            )
             usage = {
-                "prompt_tokens": getattr(response.usage_metadata, "prompt_token_count", 0),
-                "completion_tokens": getattr(
-                    response.usage_metadata, "candidates_token_count", 0
-                ),
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
             }
+            estimated_cost = self._estimate_cost(
+                model, prompt_tokens or 0, completion_tokens or 0
+            )
 
         return LLMResponse(
             content=content,
             model=model,
             usage=usage,
             latency_ms=elapsed_ms,
+            estimated_cost=estimated_cost,
         )
 
     def supports_model(self, model: str) -> bool:
         return "gemini" in model.lower()
+
+    def _estimate_cost(
+        self, model: str, input_tokens: int, output_tokens: int
+    ) -> float:
+        """Estimate cost in USD from token counts."""
+        model_lower = model.lower()
+        for prefix, (inp, out) in self.COSTS.items():
+            if prefix in model_lower:
+                return (input_tokens * inp + output_tokens * out) / 1_000_000
+        return 0.0
