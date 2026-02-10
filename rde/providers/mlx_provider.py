@@ -20,6 +20,14 @@ class MLXProvider(BaseProvider):
     """
 
     def __init__(self, model_path: str | None = None):
+        import warnings
+
+        warnings.warn(
+            "MLXProvider is deprecated. Use LocalOpenAIProvider with vLLM-mlx "
+            "for better parallelism (continuous batching). See scripts/run_vllm_mlx.sh.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         path = model_path or os.environ.get(
             "RDE_LOCAL_MODEL_PATH", "~/Models/Qwen3-8B-4bit"
         )

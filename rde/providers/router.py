@@ -52,15 +52,23 @@ class ModelRouter:
 
             self._providers["kimi"] = KimiProvider()
 
-        # MLX provider: available when mlx is installed and model path exists
-        try:
-            model_path = os.path.expanduser(self.config.local_model_path)
-            if os.path.exists(model_path):
-                from .mlx_provider import MLXProvider
+        # Local OpenAI-compatible server (vLLM-mlx, LM Studio, Ollama)
+        local_url = os.environ.get("LOCAL_OPENAI_BASE_URL")
+        local_model = os.environ.get("LOCAL_OPENAI_MODEL")
+        if local_url or local_model:
+            from .local_openai_provider import LocalOpenAIProvider
 
-                self._providers["local"] = MLXProvider(model_path)
-        except ImportError:
-            pass
+            self._providers["local"] = LocalOpenAIProvider()
+        else:
+            # Legacy MLX fallback: available when mlx is installed and model path exists
+            try:
+                model_path = os.path.expanduser(self.config.local_model_path)
+                if os.path.exists(model_path):
+                    from .mlx_provider import MLXProvider
+
+                    self._providers["local"] = MLXProvider(model_path)
+            except ImportError:
+                pass
 
     def get_provider(self, model: str) -> BaseProvider:
         """Find the provider that supports the given model identifier."""
@@ -109,6 +117,12 @@ class ModelRouter:
         assigned: list[str] = []
         for i, trace in enumerate(traces):
             if trace.model_preference != "any":
+                # Support "family:model" syntax (e.g., "local:qwen3-8b", "openai:gpt-4.1")
+                if ":" in trace.model_preference:
+                    family, model_name = trace.model_preference.split(":", 1)
+                    if family in self._providers:
+                        assigned.append(model_name)
+                        continue
                 # Trace has a specific model preference
                 if self._model_available(trace.model_preference):
                     assigned.append(trace.model_preference)
