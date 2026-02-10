@@ -6,8 +6,10 @@ comparison tables against the published results from Zhang et al. (2025).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import re as _re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,32 +17,28 @@ from typing import Any
 
 from ..engine import DialecticalEngine
 from ..models import ModelConfig, RecursionBudget
-from .datasets import BenchmarkDataset, BenchmarkTask, OolongLoader, SNIAHLoader
-from .scoring import exact_match, f1_pairs, oolong_accuracy
+from ..providers.router import ModelRouter
+from .datasets import BenchmarkDataset, BenchmarkTask, OolongLoader, OolongPairsLoader, SNIAHLoader
+from .scoring import exact_match, f1_pairs, oolong_accuracy, oolong_score
 
 logger = logging.getLogger(__name__)
 
 
-# RLM Paper Table 1 baselines (Zhang et al., arXiv:2512.24601)
-# These are cited from the paper — NOT re-run
+# RLM Paper Figure 1 baselines (Zhang et al., arXiv:2512.24601)
+# Updated to GPT-5 results (paper revision, 2025). Read from Figure 1 at 131K context.
+# These are cited from the paper — NOT re-run.
 RLM_BASELINES: dict[str, dict[str, float]] = {
     "oolong": {
-        "GPT-4o Base": 44.0,
-        "RLM (GPT-4o)": 56.5,
-        "Gemini-2.0-Flash Base": 31.5,
-        "RLM (Gemini-2.0-Flash)": 50.0,
-        "Qwen3-235B Base": 36.0,
-        "RLM (Qwen3-235B)": 48.0,
+        "GPT-5 Base": 45.0,
+        "RLM (GPT-5)": 57.0,
     },
     "oolong_pairs": {
-        "GPT-4o Base": 0.04,
-        "RLM (GPT-4o)": 58.0,
-        "Gemini-2.0-Flash Base": 0.0,
-        "RLM (Gemini-2.0-Flash)": 37.5,
+        "GPT-5 Base": 0.0,
+        "RLM (GPT-5)": 63.0,
     },
     "sniah": {
-        "GPT-4o Base": 93.3,
-        "RLM (GPT-4o)": 96.0,
+        "GPT-5 Base": 100.0,
+        "RLM (GPT-5)": 100.0,
     },
 }
 
@@ -86,6 +84,7 @@ class BenchmarkRunner:
         use_orchestrator: bool = True,
         max_iterations: int = 1,
         max_cost_usd: float = 50.0,
+        num_traces: int | None = None,
     ) -> None:
         self.engine_config = engine_config
         self.config_name = config_name
@@ -93,26 +92,32 @@ class BenchmarkRunner:
         self.use_orchestrator = use_orchestrator
         self.max_iterations = max_iterations
         self.max_cost_usd = max_cost_usd
+        self.num_traces = num_traces
+
+    @property
+    def _is_baseline(self) -> bool:
+        """True when running a single-model, single-pass baseline (no orchestration)."""
+        return not self.use_orchestrator and self.num_traces == 1 and self.execution_mode == "direct"
 
     async def run_oolong(
         self,
-        context_size: int = 131_000,
-        num_tasks: int | None = None,
+        context_len: int = 131_072,
+        max_tasks: int | None = None,
     ) -> BenchmarkResult:
-        """Run OOLONG benchmark (classification distribution)."""
-        dataset = OolongLoader.load_trec_coarse(
-            context_size_tokens=context_size,
-            num_tasks=num_tasks or 50,
+        """Run OOLONG benchmark from official oolongbench/oolong-synth dataset."""
+        dataset = OolongLoader.load(
+            context_len=context_len,
+            max_tasks=max_tasks or 400,
         )
         return await self._run_dataset(dataset, "accuracy")
 
     async def run_oolong_pairs(
         self,
-        context_size: int = 131_000,
+        context_size: int = 32_768,
         num_tasks: int | None = None,
     ) -> BenchmarkResult:
-        """Run OOLONG-Pairs benchmark (pairwise matching)."""
-        dataset = OolongLoader.load_oolong_pairs(
+        """Run OOLONG-Pairs benchmark (20 pairwise queries from RLM paper)."""
+        dataset = OolongPairsLoader.load(
             context_size_tokens=context_size,
             num_tasks=num_tasks or 20,
         )
@@ -123,7 +128,7 @@ class BenchmarkRunner:
         context_sizes: list[int] | None = None,
         tasks_per_size: int = 10,
     ) -> BenchmarkResult:
-        """Run S-NIAH benchmark (needle in haystack)."""
+        """Run S-NIAH benchmark (RULER-style needle in haystack)."""
         dataset = SNIAHLoader.load(
             context_sizes=context_sizes or [131_000],
             tasks_per_size=tasks_per_size,
@@ -143,7 +148,108 @@ class BenchmarkRunner:
         dataset: BenchmarkDataset,
         metric_name: str,
     ) -> BenchmarkResult:
-        """Run RDE on all tasks in a dataset."""
+        """Run on all tasks in a dataset.
+
+        For baseline configs (single-model, single-pass, no orchestration),
+        calls the LLM directly with context in the system message and query in
+        the user message — matching how OOLONG and S-NIAH papers evaluate.
+
+        For RDE configs, routes through the full dialectical engine.
+        """
+        if self._is_baseline:
+            return await self._run_dataset_baseline(dataset, metric_name)
+        return await self._run_dataset_engine(dataset, metric_name)
+
+    async def _run_dataset_baseline(
+        self,
+        dataset: BenchmarkDataset,
+        metric_name: str,
+    ) -> BenchmarkResult:
+        """Run baseline: single LLM call per task with proper message formatting.
+
+        Context goes in the system message; query goes in the user message.
+        This matches how long-context benchmarks are evaluated in the literature.
+        """
+        task_results = []
+        model = self.engine_config.trace_models[0]
+        router = ModelRouter(self.engine_config)
+
+        for task in dataset.tasks:
+            logger.info("Running task %s (baseline, model=%s)", task.task_id, model)
+            start = time.perf_counter()
+
+            messages = [
+                {"role": "system", "content": task.context},
+                {"role": "user", "content": task.query},
+            ]
+
+            # Retry with backoff for rate limiting
+            full_output = None
+            last_error = None
+            for attempt in range(4):
+                try:
+                    response = await router.complete(
+                        messages=messages,
+                        model=model,
+                        temperature=0.0,
+                        max_tokens=4096,
+                    )
+                    full_output = response.content
+                    break
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e)
+                    # Extract retry delay from API error if available
+                    retry_match = _re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", error_str)
+                    if "429" in error_str or "quota" in error_str.lower():
+                        wait = int(retry_match.group(1)) + 5 if retry_match else 30 * (attempt + 1)
+                        logger.warning("Rate limited on %s, waiting %ds (attempt %d/4)", task.task_id, wait, attempt + 1)
+                        await asyncio.sleep(wait)
+                    else:
+                        break  # Non-retryable error
+
+            elapsed_ms = (time.perf_counter() - start) * 1000
+
+            if full_output is not None:
+                score = self._score_task(task, full_output)
+                task_results.append(TaskResult(
+                    task_id=task.task_id,
+                    predicted=full_output,
+                    ground_truth=task.ground_truth,
+                    score=score,
+                    raw_output=full_output,
+                    latency_ms=elapsed_ms,
+                    llm_calls=1,
+                ))
+            else:
+                logger.error("Task %s failed after retries: %s", task.task_id, last_error)
+                task_results.append(TaskResult(
+                    task_id=task.task_id,
+                    predicted=None,
+                    ground_truth=task.ground_truth,
+                    score=0.0,
+                    raw_output=str(last_error),
+                ))
+
+        scores = [tr.score for tr in task_results]
+        aggregate = sum(scores) / len(scores) * 100 if scores else 0.0
+
+        return BenchmarkResult(
+            benchmark_name=dataset.name,
+            config_name=self.config_name,
+            task_results=task_results,
+            aggregate_score=aggregate,
+            aggregate_metric=metric_name,
+            total_latency_ms=sum(tr.latency_ms for tr in task_results),
+            total_llm_calls=sum(tr.llm_calls for tr in task_results),
+        )
+
+    async def _run_dataset_engine(
+        self,
+        dataset: BenchmarkDataset,
+        metric_name: str,
+    ) -> BenchmarkResult:
+        """Run through the full dialectical engine (for RDE configurations)."""
         task_results = []
         budget = RecursionBudget(max_cost_usd=self.max_cost_usd, max_total_calls=500)
 
@@ -161,19 +267,28 @@ class BenchmarkRunner:
                         use_orchestrator=self.use_orchestrator,
                         max_iterations=self.max_iterations,
                         budget=budget,
+                        num_traces=self.num_traces,
+                        execution_mode=self.execution_mode,
                     )
 
                     elapsed_ms = (time.perf_counter() - start) * 1000
 
-                    # Score the result
-                    score = self._score_task(task, result.resolution)
+                    # Collect all raw outputs for scoring
+                    full_output = result.resolution
+                    if result.trace_results:
+                        full_output = "\n".join(
+                            tr.raw_output for tr in result.trace_results
+                            if tr.raw_output
+                        )
+
+                    score = self._score_task(task, full_output)
 
                     task_results.append(TaskResult(
                         task_id=task.task_id,
                         predicted=result.resolution,
                         ground_truth=task.ground_truth,
                         score=score,
-                        raw_output=result.resolution,
+                        raw_output=full_output,
                         latency_ms=elapsed_ms,
                         llm_calls=budget.total_calls,
                     ))
@@ -205,11 +320,14 @@ class BenchmarkRunner:
     def _score_task(self, task: BenchmarkTask, resolution: str) -> float:
         """Score a task based on its scoring function."""
         try:
-            if task.scoring_fn == "oolong_accuracy":
+            if task.scoring_fn == "oolong":
+                return oolong_score(resolution, task.ground_truth, task.answer_type)
+            elif task.scoring_fn == "oolong_accuracy":
+                # Legacy: category-count format
                 predicted = self._parse_category_counts(resolution)
                 return oolong_accuracy(predicted, task.ground_truth)
             elif task.scoring_fn == "f1_pairs":
-                predicted = self._parse_pairs(resolution)
+                predicted = self._parse_user_pairs(resolution)
                 return f1_pairs(predicted, task.ground_truth)
             elif task.scoring_fn == "exact_match":
                 return exact_match(resolution, task.ground_truth)
@@ -220,14 +338,27 @@ class BenchmarkRunner:
     @staticmethod
     def _parse_category_counts(text: str) -> dict[str, float]:
         """Parse category count JSON from LLM output."""
+        import re
+
+        # Strip markdown code fences
+        cleaned = re.sub(r"```(?:json)?\s*", "", text)
+
+        # Try to find JSON object (greedy, handles multiline)
         try:
-            # Try to find JSON in the text
-            import re
-            match = re.search(r"\{[^}]+\}", text)
+            match = re.search(r"\{[^{}]*\}", cleaned)
             if match:
                 return json.loads(match.group())
         except (json.JSONDecodeError, AttributeError):
             pass
+
+        # Try multiline JSON with nested structure
+        try:
+            match = re.search(r"\{.*?\}", cleaned, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
         return {}
 
     @staticmethod
@@ -244,6 +375,39 @@ class BenchmarkRunner:
         return set()
 
     @staticmethod
+    def _parse_user_pairs(text: str) -> set[tuple[str, str]]:
+        """Parse user ID pairs from LLM output.
+
+        OOLONG-Pairs format: (user_id_1, user_id_2) on each line.
+        Also handles JSON array format: [["id1", "id2"], ...].
+        """
+        import re
+
+        pairs: set[tuple[str, str]] = set()
+
+        # Try tuple format: (12345, 67890)
+        tuple_matches = re.findall(r"\((\d+)\s*,\s*(\d+)\)", text)
+        if tuple_matches:
+            for a, b in tuple_matches:
+                pairs.add((str(min(int(a), int(b))), str(max(int(a), int(b)))))
+            return pairs
+
+        # Try JSON array format
+        try:
+            match = re.search(r"\[.*\]", text, re.DOTALL)
+            if match:
+                parsed = json.loads(match.group())
+                for p in parsed:
+                    if isinstance(p, (list, tuple)) and len(p) == 2:
+                        a, b = str(p[0]), str(p[1])
+                        pairs.add((min(a, b), max(a, b)))
+                return pairs
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+        return pairs
+
+    @staticmethod
     def comparison_table(
         results: dict[str, BenchmarkResult],
         include_rlm: bool = True,
@@ -254,18 +418,18 @@ class BenchmarkRunner:
         lines.append("|--------|---------------|---------------------|---------------|")
 
         if include_rlm:
-            # Add RLM baseline rows
+            # Add RLM baseline rows (GPT-5, from Zhang et al. Figure 1 at 131K)
             lines.append(
-                f"| GPT-4o Base | "
-                f"{RLM_BASELINES['oolong'].get('GPT-4o Base', '-'):.1f} | "
-                f"{RLM_BASELINES['oolong_pairs'].get('GPT-4o Base', '-'):.2f} | "
-                f"{RLM_BASELINES['sniah'].get('GPT-4o Base', '-'):.1f} |"
+                f"| GPT-5 Base | "
+                f"{RLM_BASELINES['oolong'].get('GPT-5 Base', '-'):.1f} | "
+                f"{RLM_BASELINES['oolong_pairs'].get('GPT-5 Base', '-'):.1f} | "
+                f"{RLM_BASELINES['sniah'].get('GPT-5 Base', '-'):.1f} |"
             )
             lines.append(
-                f"| RLM (GPT-4o) [Zhang et al.] | "
-                f"{RLM_BASELINES['oolong'].get('RLM (GPT-4o)', '-'):.1f} | "
-                f"{RLM_BASELINES['oolong_pairs'].get('RLM (GPT-4o)', '-'):.1f} | "
-                f"{RLM_BASELINES['sniah'].get('RLM (GPT-4o)', '-'):.1f} |"
+                f"| RLM (GPT-5) [Zhang et al.] | "
+                f"{RLM_BASELINES['oolong'].get('RLM (GPT-5)', '-'):.1f} | "
+                f"{RLM_BASELINES['oolong_pairs'].get('RLM (GPT-5)', '-'):.1f} | "
+                f"{RLM_BASELINES['sniah'].get('RLM (GPT-5)', '-'):.1f} |"
             )
 
         # Add our results
@@ -274,11 +438,11 @@ class BenchmarkRunner:
         sniah = results.get("sniah")
         config_name = oolong.config_name if oolong else "RDE"
 
-        oolong_score = f"{oolong.aggregate_score:.1f}" if oolong else "-"
-        pairs_score = f"{pairs.aggregate_score:.1f}" if pairs else "-"
-        sniah_score = f"{sniah.aggregate_score:.1f}" if sniah else "-"
+        oolong_val = f"{oolong.aggregate_score:.1f}" if oolong else "-"
+        pairs_val = f"{pairs.aggregate_score:.1f}" if pairs else "-"
+        sniah_val = f"{sniah.aggregate_score:.1f}" if sniah else "-"
 
-        lines.append(f"| **{config_name}** | {oolong_score} | {pairs_score} | {sniah_score} |")
+        lines.append(f"| **{config_name}** | {oolong_val} | {pairs_val} | {sniah_val} |")
 
         return "\n".join(lines)
 

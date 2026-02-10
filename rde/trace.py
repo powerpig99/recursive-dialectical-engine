@@ -138,9 +138,16 @@ class TraceExecutor:
         total_usage: dict = {}
 
         system_prompt = self._build_repl_system_prompt(config)
+        # Extract the query portion from the prompt (after "---\nQUERY:")
+        prompt_text = self.env.prompt_var
+        query_marker = "---\nQUERY:"
+        if query_marker in prompt_text:
+            query_text = prompt_text.split(query_marker, 1)[1].strip()
+        else:
+            query_text = prompt_text[-500:]  # Fallback: use last 500 chars
         initial_msg = REPL_INITIAL_MESSAGE.format(
-            context_len=len(self.env.prompt_var),
-            query=self.env.prompt_var[:500],  # First 500 chars as query preview
+            context_len=len(prompt_text),
+            query=query_text,
         )
 
         messages: list[dict[str, str]] = [

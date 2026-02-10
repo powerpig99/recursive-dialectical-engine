@@ -14,7 +14,11 @@ class TraceNormalizer:
 
     def normalize(self, result: TraceResult) -> NormalizedTrace:
         """Extract structured information from a raw trace output."""
-        conclusion = self._extract_conclusion(result.raw_output)
+        # Use extracted_answer (from REPL FINAL) when available
+        if result.extracted_answer:
+            conclusion = result.extracted_answer
+        else:
+            conclusion = self._extract_conclusion(result.raw_output)
         reasoning_chain = self._extract_reasoning_chain(result.raw_output)
         model_family = self._detect_model_family(result.model_used)
 
