@@ -45,7 +45,9 @@ class ContextEnvironment:
     )
 
     def peek(self, start: int, end: int) -> str
+    def peek_lines(self, start_line: int, end_line: int) -> str
     def search(self, pattern: str) -> list[str]
+    def search_lines(self, pattern: str) -> list[tuple[int, str]]
     def partition(self, strategy: str = "structural") -> list[str]
     async def prepare_partitions(self, strategy: str, custom_fn=None) -> list[str]
     async def spawn_sub_lm(self, sub_prompt: str, model: str | None = None) -> str
@@ -99,6 +101,9 @@ Normalizes trace outputs for cross-model comparison.
 
 ```python
 class TraceNormalizer:
+    # Per-model-family confidence calibration factors
+    CALIBRATION_FACTORS = {"anthropic": 1.1, "openai": 0.9, "google": 1.0, ...}
+
     def normalize(self, result: TraceResult) -> NormalizedTrace
     def check_consensus(self, normalized: list[NormalizedTrace]) -> bool
 ```
@@ -169,6 +174,8 @@ class TraceResult(BaseModel):
     error: Optional[str] = None
     latency_ms: float = 0.0
     token_usage: dict = Field(default_factory=dict)
+    fallback_used: bool = False
+    original_model: Optional[str] = None
 
 class NormalizedTrace(BaseModel):
     trace_id: str
@@ -262,7 +269,9 @@ class ModelConfig(BaseModel):
     arbiter_temperature: float = 0.1
     orchestrator_temperature: float = 0.3
     sub_lm_temperature: float = 0.3
-    local_model_path: str = "~/Models/Qwen3-8B-4bit"
+    local_server_url: str = "http://localhost:8000/v1"
+    local_model_name: str = "default"
+    local_model_path: str = "~/Models/Qwen3-8B-4bit"  # legacy
 ```
 
 ---
@@ -278,6 +287,7 @@ class LLMResponse:
     model: str
     usage: dict = field(default_factory=dict)
     latency_ms: float = 0.0
+    estimated_cost: float = 0.0
 
 class BaseProvider(ABC):
     async def complete(
@@ -301,10 +311,59 @@ class ModelRouter:
         max_tokens=4096, response_format=None,
     ) -> LLMResponse
     def assign_trace_models(self, traces: list[TraceConfig]) -> list[str]
+    def get_fallback_model(self, failed_model: str) -> str | None
     async def close(self) -> None
 
     @property
     def available_providers(self) -> list[str]
+```
+
+### `LocalOpenAIProvider` (`rde/providers/local_openai_provider.py`)
+
+OpenAI-compatible local server provider (vLLM-mlx, LM Studio, Ollama).
+
+```python
+class LocalOpenAIProvider(BaseProvider):
+    def __init__(
+        self,
+        base_url: str | None = None,   # env: LOCAL_OPENAI_BASE_URL
+        model: str | None = None,       # env: LOCAL_OPENAI_MODEL
+        api_key: str | None = None,     # env: LOCAL_OPENAI_API_KEY
+    )
+
+    async def complete(
+        self, messages, model, temperature=0.7,
+        max_tokens=4096, response_format=None,
+    ) -> LLMResponse  # estimated_cost always 0.0
+
+    def supports_model(self, model: str) -> bool
+    # Matches: "local", default_model, "vllm-*", "mlx-*", "~/path", "/path"
+```
+
+---
+
+## Benchmarks (`rde/benchmarks/`)
+
+```python
+# Runner
+class BenchmarkRunner:
+    async def run(self, benchmark: str, context_len: int, ...) -> dict
+    async def run_baseline(self, benchmark: str, model: str, ...) -> dict
+
+# Datasets
+class OolongDataset:
+    def load(self, context_len: int) -> list[dict]
+
+class SNIAHDataset:
+    def generate(self, context_len: int, num_needles: int) -> list[dict]
+
+class OolongPairsDataset:
+    def construct(self, context_len: int) -> list[dict]
+
+# Scoring
+def score_oolong(prediction: str, answer: str, answer_type: str) -> float
+def score_s_niah(prediction: str, expected: str) -> float
+def score_oolong_pairs(predicted_pairs: set, expected_pairs: set) -> float
 ```
 
 ---
@@ -353,7 +412,9 @@ async def compute_all(
 
 ```python
 def extract_boxed(text: str) -> str | None
-def extract_json_block(text: str) -> str | None
+def extract_json_block(text: str) -> str | None  # includes JSON repair fallback
+def _attempt_json_repair(text: str) -> str | None  # fixes trailing commas, single quotes, etc.
+def validate_trace_config(json_str: str) -> bool
 ```
 
 ### Visualizer (`rde/utils/visualizer.py`)

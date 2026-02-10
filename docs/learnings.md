@@ -135,6 +135,34 @@ Documenting what was built in each phase, what worked as designed, what needed a
 - Created `tests/test_arbiter.py` (14 tests) and `tests/test_trace.py` (11 tests)
 - Total: 185 tests, lint clean
 
+## Phase 8: Benchmarks & Alternative Implementation Audits
+
+**Planned**: Benchmark evaluation suite, audit Kimi and Codex alternative implementations.
+
+**Built**:
+- Benchmark suite (`rde/benchmarks/`): OOLONG (long-context QA from HuggingFace `oolongbench/oolong-synth`), S-NIAH (RULER-style needle-in-a-haystack), OOLONG-Pairs (relational memory with TREC-coarse data)
+- Baseline execution path in `BenchmarkRunner` for single-model evaluation
+- LaTeX answer parsing fix in OOLONG scoring
+- 6 patterns ported from Kimi implementation audit:
+  - JSON repair in `extraction.py` (trailing commas, single quotes, JS comments, unquoted keys)
+  - Trace fallback to alternate model on provider failure
+  - Per-provider cost tracking (COSTS dicts in Anthropic, OpenAI, Google providers)
+  - Line-based environment operations (`peek_lines`, `search_lines`)
+  - Model-family confidence calibration in normalizer (Anthropic 1.1x, OpenAI 0.9x)
+- `LocalOpenAIProvider` replacing `MLXProvider` (from Codex audit):
+  - httpx-based async HTTP to OpenAI-compatible local servers (vLLM-mlx, LM Studio, Ollama)
+  - Continuous batching via vLLM-mlx enables ~3x speedup for parallel traces
+  - `family:model` preference syntax in router (e.g., `"local:qwen3-8b"`)
+  - vLLM-mlx startup script (`scripts/run_vllm_mlx.sh`)
+
+**Key insight**: Direct MLX inference (`mlx_lm.generate()`) is synchronous and holds the GIL — it serializes all parallel traces. vLLM-mlx as an out-of-process server with continuous batching allows true concurrent trace execution. For RDE's architecture (N independent traces), this is the critical bottleneck for local inference.
+
+**Key insight**: JSON repair covers ~80% of common LLM JSON failures (trailing commas, single quotes from Python-influenced models, JS-style comments, unquoted keys). The 4-strategy cascade in `extract_json_block()` handles code blocks → bare JSON → JSON arrays → repair.
+
+**Benchmark baselines** (1K context, Claude Sonnet): OOLONG 80.9%, S-NIAH 100%, OOLONG-Pairs 100%.
+
+**Changes**: 287 tests (up from 185 in Phase 7). 8 providers (up from 7). MLXProvider deprecated but retained for backward compatibility.
+
 ## Cross-Cutting Learnings
 
 ### What the proposal got right
