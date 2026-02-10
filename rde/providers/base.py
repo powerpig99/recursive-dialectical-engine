@@ -14,6 +14,7 @@ class LLMResponse:
     model: str
     usage: dict = field(default_factory=dict)  # {"prompt_tokens": N, "completion_tokens": M}
     latency_ms: float = 0.0
+    estimated_cost: float = 0.0  # Estimated cost in USD
 
 
 class BaseProvider(ABC):

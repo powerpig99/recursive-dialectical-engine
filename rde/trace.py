@@ -38,7 +38,8 @@ class TraceExecutor:
     async def execute(self, config: TraceConfig, model: str) -> TraceResult:
         """Run a trace and return its result.
 
-        Handles context strategy routing, error wrapping, and answer extraction.
+        Handles context strategy routing, error wrapping, answer extraction,
+        and fallback to an alternate model on failure.
         """
         trace_id = f"{config.role.lower()}_{uuid.uuid4().hex[:8]}"
 
@@ -70,6 +71,50 @@ class TraceExecutor:
             )
 
         except Exception as e:
+            # Attempt fallback to a different model
+            fallback_model = self.router.get_fallback_model(model)
+            if fallback_model is not None:
+                logger.warning(
+                    "Trace %s failed with %s, falling back to %s: %s",
+                    trace_id, model, fallback_model, e,
+                )
+                try:
+                    user_prompt = self._build_user_prompt(config)
+                    messages = build_trace_messages(config.system_prompt, user_prompt)
+                    response = await self.router.complete(
+                        messages=messages,
+                        model=fallback_model,
+                        temperature=config.temperature,
+                        max_tokens=4096,
+                    )
+                    if self.budget is not None:
+                        self.budget.record_call()
+
+                    extracted = extract_boxed(response.content)
+                    return TraceResult(
+                        trace_id=trace_id,
+                        role=config.role,
+                        model_used=response.model,
+                        raw_output=response.content,
+                        extracted_answer=extracted,
+                        latency_ms=response.latency_ms,
+                        token_usage=response.usage,
+                        fallback_used=True,
+                        original_model=model,
+                    )
+                except Exception as fallback_err:
+                    logger.error(
+                        "Fallback also failed for trace %s: %s",
+                        trace_id, fallback_err,
+                    )
+                    return TraceResult(
+                        trace_id=trace_id,
+                        role=config.role,
+                        model_used=model,
+                        raw_output="",
+                        error=f"Primary: {e}; Fallback ({fallback_model}): {fallback_err}",
+                    )
+
             return TraceResult(
                 trace_id=trace_id,
                 role=config.role,

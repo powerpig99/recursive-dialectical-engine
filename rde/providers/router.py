@@ -129,6 +129,36 @@ class ModelRouter:
         """Check if a model is servable by any initialized provider."""
         return any(p.supports_model(model) for p in self._providers.values())
 
+    def get_fallback_model(self, failed_model: str) -> str | None:
+        """Find a fallback model from a different provider family.
+
+        Prefers models from a different provider than the one that failed.
+        Returns None if no alternative is available.
+        """
+        failed_family = self._get_provider_name(failed_model)
+        available = [
+            m for m in self.config.trace_models if self._model_available(m)
+        ]
+
+        # Prefer different family first
+        for m in available:
+            if self._get_provider_name(m) != failed_family:
+                return m
+
+        # Same family but different model
+        for m in available:
+            if m != failed_model:
+                return m
+
+        return None
+
+    def _get_provider_name(self, model: str) -> str:
+        """Get the provider name for a model."""
+        for name, provider in self._providers.items():
+            if provider.supports_model(model):
+                return name
+        return "unknown"
+
     @property
     def available_providers(self) -> list[str]:
         """List of initialized provider names."""

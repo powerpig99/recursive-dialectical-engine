@@ -99,3 +99,69 @@ def test_detect_model_families():
     assert norm._detect_model_family("kimi-k2.5-preview") == "kimi"
     assert norm._detect_model_family("~/Models/Qwen3-8B-4bit") == "local"
     assert norm._detect_model_family("something-else") == "unknown"
+
+
+def test_confidence_calibration_anthropic():
+    """Anthropic models get a 1.1x confidence boost."""
+    norm = TraceNormalizer()
+    tr = TraceResult(
+        trace_id="t1",
+        role="Logician",
+        model_used="claude-sonnet",
+        raw_output="Analysis.\nConfidence: 70%\n\\boxed{42}",
+    )
+    nt = norm.normalize(tr)
+    # 0.7 * 1.1 = 0.77
+    assert abs(nt.confidence - 0.77) < 0.01
+
+
+def test_confidence_calibration_openai():
+    """OpenAI models get a 0.9x confidence dampening."""
+    norm = TraceNormalizer()
+    tr = TraceResult(
+        trace_id="t1",
+        role="Logician",
+        model_used="gpt-5",
+        raw_output="Analysis.\nConfidence: 90%\n\\boxed{42}",
+    )
+    nt = norm.normalize(tr)
+    # 0.9 * 0.9 = 0.81
+    assert abs(nt.confidence - 0.81) < 0.01
+
+
+def test_confidence_calibration_capped_at_1():
+    """Calibrated confidence should not exceed 1.0."""
+    norm = TraceNormalizer()
+    tr = TraceResult(
+        trace_id="t1",
+        role="Logician",
+        model_used="claude-sonnet",
+        raw_output="Confidence: 95%\n\\boxed{42}",
+    )
+    nt = norm.normalize(tr)
+    # 0.95 * 1.1 = 1.045 → capped at 1.0
+    assert nt.confidence == 1.0
+
+
+def test_confidence_default_when_not_stated():
+    """Default confidence is 0.5 when not explicitly stated."""
+    norm = TraceNormalizer()
+    tr = TraceResult(
+        trace_id="t1",
+        role="Logician",
+        model_used="gemini-2.5-pro",
+        raw_output="The answer is 42.",
+    )
+    nt = norm.normalize(tr)
+    # 0.5 * 1.0 (google) = 0.5
+    assert abs(nt.confidence - 0.5) < 0.01
+
+
+def test_extract_confidence_percentage():
+    norm = TraceNormalizer()
+    assert abs(norm._extract_confidence("Confidence: 85%") - 0.85) < 0.01
+
+
+def test_extract_confidence_decimal():
+    norm = TraceNormalizer()
+    assert abs(norm._extract_confidence("Confidence: 0.85") - 0.85) < 0.01

@@ -25,6 +25,9 @@ class FakeRouter:
     async def complete(self, messages, model, temperature=0.7, max_tokens=4096, response_format=None):
         return LLMResponse(content=self._content, model=model, latency_ms=10.0)
 
+    def get_fallback_model(self, failed_model):
+        return None
+
 
 class _FakeConfig:
     """Minimal stand-in for ModelConfig attributes accessed by TraceExecutor."""
@@ -96,6 +99,9 @@ async def test_execute_handles_error():
         async def complete(self, messages, model, temperature=0.7, max_tokens=4096, response_format=None):
             raise RuntimeError("API connection failed")
 
+        def get_fallback_model(self, failed_model):
+            return None
+
     env = ContextEnvironment("test prompt")
     executor = TraceExecutor(ErrorRouter(), env)
 
@@ -104,6 +110,62 @@ async def test_execute_handles_error():
     assert result.error is not None
     assert "API connection failed" in result.error
     assert result.raw_output == ""
+
+
+@pytest.mark.asyncio
+async def test_execute_fallback_on_error():
+    """When primary model fails and fallback is available, use it."""
+
+    class FallbackRouter:
+        def __init__(self):
+            self.call_count = 0
+
+        async def complete(self, messages, model, temperature=0.7, max_tokens=4096, response_format=None):
+            self.call_count += 1
+            if model == "primary-model":
+                raise RuntimeError("Primary down")
+            return LLMResponse(content="fallback answer", model="fallback-model", latency_ms=5.0)
+
+        def get_fallback_model(self, failed_model):
+            if failed_model == "primary-model":
+                return "fallback-model"
+            return None
+
+    env = ContextEnvironment("test prompt")
+    router = FallbackRouter()
+    executor = TraceExecutor(router, env)
+
+    result = await executor.execute(_default_trace_config(), "primary-model")
+
+    assert result.error is None
+    assert result.fallback_used is True
+    assert result.original_model == "primary-model"
+    assert result.model_used == "fallback-model"
+    assert result.raw_output == "fallback answer"
+    assert router.call_count == 2  # primary + fallback
+
+
+@pytest.mark.asyncio
+async def test_execute_fallback_also_fails():
+    """When both primary and fallback fail, capture combined error."""
+
+    class AllFailRouter:
+        async def complete(self, messages, model, temperature=0.7, max_tokens=4096, response_format=None):
+            raise RuntimeError(f"{model} failed")
+
+        def get_fallback_model(self, failed_model):
+            if failed_model == "model-a":
+                return "model-b"
+            return None
+
+    env = ContextEnvironment("test prompt")
+    executor = TraceExecutor(AllFailRouter(), env)
+
+    result = await executor.execute(_default_trace_config(), "model-a")
+
+    assert result.error is not None
+    assert "Primary" in result.error
+    assert "Fallback" in result.error
 
 
 # ---------------------------------------------------------------------------

@@ -15,6 +15,13 @@ class AnthropicProvider(BaseProvider):
     (system is a top-level param, not a message role).
     """
 
+    # Per-million-token pricing: (input, output)
+    COSTS: dict[str, tuple[float, float]] = {
+        "claude-opus-4-6": (15.0, 75.0),
+        "claude-sonnet-4-5": (3.0, 15.0),
+        "claude-haiku-4-5": (0.80, 4.0),
+    }
+
     def __init__(self) -> None:
         import anthropic
 
@@ -51,21 +58,36 @@ class AnthropicProvider(BaseProvider):
 
         content = response.content[0].text if response.content else ""
         usage = {}
+        estimated_cost = 0.0
         if response.usage:
             usage = {
                 "prompt_tokens": response.usage.input_tokens,
                 "completion_tokens": response.usage.output_tokens,
             }
+            estimated_cost = self._estimate_cost(
+                model, response.usage.input_tokens, response.usage.output_tokens
+            )
 
         return LLMResponse(
             content=content,
             model=response.model,
             usage=usage,
             latency_ms=elapsed_ms,
+            estimated_cost=estimated_cost,
         )
 
     def supports_model(self, model: str) -> bool:
         return "claude" in model.lower()
+
+    def _estimate_cost(
+        self, model: str, input_tokens: int, output_tokens: int
+    ) -> float:
+        """Estimate cost in USD from token counts."""
+        model_lower = model.lower()
+        for prefix, (inp, out) in self.COSTS.items():
+            if prefix in model_lower:
+                return (input_tokens * inp + output_tokens * out) / 1_000_000
+        return 0.0
 
     async def close(self) -> None:
         await self._client.close()

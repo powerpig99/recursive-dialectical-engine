@@ -59,6 +59,8 @@ class TraceResult(BaseModel):
     error: Optional[str] = None
     latency_ms: float = 0.0
     token_usage: dict = Field(default_factory=dict)
+    fallback_used: bool = False
+    original_model: Optional[str] = None
 
 
 class NormalizedTrace(BaseModel):
