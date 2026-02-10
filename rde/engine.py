@@ -116,10 +116,14 @@ class DialecticalEngine:
 
             # Step 3: Execute traces in parallel
             executor = TraceExecutor(self.router, env, budget=budget)
-            tasks = [
-                executor.execute(config, model)
-                for config, model in zip(trace_configs, assigned_models)
-            ]
+            tasks = []
+            for config, model in zip(trace_configs, assigned_models):
+                if config.execution_mode == "repl":
+                    from .sandbox.repl_sandbox import REPLSandbox
+                    repl_sandbox = REPLSandbox(env, self.router, budget)
+                    tasks.append(executor.execute_repl(config, model, repl_sandbox))
+                else:
+                    tasks.append(executor.execute(config, model))
             trace_results = list(await asyncio.gather(*tasks))
             all_trace_results.extend(trace_results)
 

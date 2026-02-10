@@ -35,6 +35,8 @@ class TraceConfig(BaseModel):
     model_preference: str = "any"  # "any" or specific model/family
     recursion_budget: int = 0
     can_recurse: bool = False
+    execution_mode: str = "direct"  # "direct" (single LLM call) | "repl" (iterative code execution)
+    max_repl_iterations: int = 15
 
 
 class OrchestratorOutput(BaseModel):
