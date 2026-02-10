@@ -10,7 +10,7 @@ The Recursive Dialectical Engine (RDE) is an AI reasoning architecture that unif
 
 It solves two LLM structural failures: **context rot** (orthogonality shattering in attention) and **probabilistic collapse** (single-pass can't sustain independent projections for logical reasoning).
 
-**Status**: Pre-implementation. The specification lives in `recursive-dialectical-engine-proposal.md`. All architectural decisions, system prompts, evaluation plans, and phased implementation details are in that document.
+**Status**: Implemented through Phase 8. Core engine, 8 providers, benchmarks, training pipeline, and ablation studies are all functional. 287 unit tests, lint clean.
 
 **Prior work**: Evolves [Dialectical-TTS](https://github.com/powerpig99/Dialectical-TTS). Informed by [RLM (Zhang et al.)](https://arxiv.org/abs/2512.24601) and [Not a ToE](https://github.com/powerpig99/ontological-clarity).
 
@@ -26,12 +26,12 @@ User Prompt → ContextEnvironment (REPL) → Orchestrator → N Independent Tra
 
 | Component | File | Role |
 |-----------|------|------|
-| `ContextEnvironment` | `rde/environment.py` | Python REPL that externalizes the prompt. Traces interact via `peek`, `search`, `partition`, `spawn_sub_lm` — never via direct prompt injection |
+| `ContextEnvironment` | `rde/environment.py` | Python REPL that externalizes the prompt. Traces interact via `peek`, `peek_lines`, `search`, `search_lines`, `partition`, `spawn_sub_lm` — never via direct prompt injection |
 | `RootOrchestrator` | `rde/orchestrator.py` | Analyzes problem structure, designs N trace configurations (not fixed at 3). Chooses constraint level: open/guided/structured |
 | `Trace` | `rde/trace.py` | Independent LM call with own system prompt, model, context strategy. Can recursively spawn sub-traces (sub-dialectics) |
 | `RecursiveArbiter` | `rde/arbiter.py` | Resolves traces through Logic of Necessity. Detects interference. Spawns sub-arbitration on unresolved dimensions. Reports shadows |
 | `TraceNormalizer` | `rde/normalizer.py` | Makes heterogeneous model outputs comparable (not agreeable) before arbitration |
-| Providers | `rde/providers/` | Abstraction over Anthropic, OpenAI, Google, OpenRouter APIs |
+| Providers | `rde/providers/` | Abstraction over Anthropic, OpenAI, Google, xAI, Kimi, HuggingFace, LocalOpenAI (vLLM-mlx) APIs. Per-provider cost tracking |
 | Sandbox | `rde/sandbox/` | Isolated REPL execution (Modal, E2B, or local subprocess) |
 
 ### Multi-Model Architecture (Core Design Principle)
@@ -45,11 +45,12 @@ Model diversity IS projection independence. Different model families encode diff
 ## Tech Stack
 
 - **Runtime**: Python 3.11+
-- **LM Access**: OpenAI, Anthropic, Google, OpenRouter clients
-- **REPL Sandbox**: Modal / E2B / Prime Intellect
+- **LM Access**: Anthropic, OpenAI, Google, xAI, Kimi, HuggingFace native SDKs + httpx for local
+- **Local inference**: vLLM-mlx (OpenAI-compatible server on Apple Silicon) via `LocalOpenAIProvider`. Also works with LM Studio, Ollama, or any OpenAI-compatible endpoint. Legacy `MLXProvider` (deprecated) for direct in-process MLX
+- **REPL Sandbox**: Local subprocess (functional), Modal / E2B (stubs)
 - **Orchestration**: `asyncio` + provider async clients
-- **Routing**: OpenRouter / LiteLLM
-- **Local fallback**: MLX (Apple Silicon) — dev/test only
+- **Benchmarks**: OOLONG (long-context QA), S-NIAH (needle-in-a-haystack), OOLONG-Pairs (relational memory)
+- **Testing**: pytest + pytest-asyncio, 287 unit tests
 
 ## Design Axioms (Non-Negotiable)
 
@@ -74,12 +75,18 @@ The architecture derives from the Not a ToE framework. Key mapping:
 
 ## Implementation Phases
 
-1. **Phase 1** (Weeks 1-2): Multi-provider infrastructure + ContextEnvironment
-2. **Phase 2** (Week 3): Adaptive orchestration (problem-specific traces)
-3. **Phase 3** (Week 4): Full recursion (sub-traces, sub-arbitration across model boundaries)
-4. **Phase 4** (Week 5): Long-context integration (RLM-style)
-5. **Phase 5** (Week 6): Trace independence measurement & optimization
-6. **Phase 6** (Week 7+): Post-training exploration (distilling multi-model reasoning)
+1. **Phase 0**: Foundation — Pydantic data models, BaseProvider, test infrastructure
+2. **Phase 1**: Multi-provider infrastructure (7 providers), ContextEnvironment, Orchestrator, Normalizer, CLI
+3. **Phase 2**: Adaptive orchestration — LLM-driven trace design, multi-iteration reframing, convergence checking
+4. **Phase 3**: Full recursion — sub-dialectic spawning, sub-arbitration, budget tracking, call tree visualization
+5. **Phase 4**: Long context & code execution — partition strategies, sandbox implementations
+6. **Phase 5**: Trace independence measurement — 6 metrics, ablation studies, results dashboard
+7. **Phase 6**: Training data pipeline — collection, distillation (3 strategies), evaluation
+8. **Phase 7**: Audit & documentation — configurable temperatures, dedicated test files, README
+9. **Phase 8**: Benchmarks & alternative implementation audits
+   - OOLONG, S-NIAH, OOLONG-Pairs benchmark suite (`rde/benchmarks/`)
+   - Kimi implementation audit: ported JSON repair, trace fallback, cost tracking, line-based env ops, confidence calibration
+   - Codex implementation audit: replaced MLXProvider with LocalOpenAIProvider (vLLM-mlx), added `family:model` preference syntax, vLLM-mlx startup script
 
 ## Development Workflow
 

@@ -41,6 +41,24 @@ export HUGGINGFACE_API_KEY="..."  # optional: HuggingFace Inference
 
 RDE auto-discovers available providers based on which keys are set. At least one key is required.
 
+### Local Inference (vLLM-mlx)
+
+For local model inference on Apple Silicon via [vLLM-mlx](https://github.com/waybarrios/vllm-mlx):
+
+```bash
+# Start the vLLM-mlx server (defaults to Qwen3-8B-MLX-8bit)
+./scripts/run_vllm_mlx.sh
+
+# Or with a custom model
+MODEL_NAME=Qwen/Qwen3-4B-MLX-4bit ./scripts/run_vllm_mlx.sh
+
+# Tell RDE to use the local server
+export LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+export LOCAL_OPENAI_MODEL=default
+```
+
+Also works with LM Studio, Ollama, or any OpenAI-compatible endpoint. Use `model_preference="local:model-name"` in trace configs to route specific traces to the local server.
+
 ## Quick Start
 
 ### CLI
@@ -181,7 +199,8 @@ RDE supports 7 model providers:
 | xAI | Grok-3 | `XAI_API_KEY` |
 | Moonshot | Kimi models | `KIMI_API_KEY` |
 | HuggingFace | Inference API models | `HUGGINGFACE_API_KEY` |
-| MLX | Local quantized models | (local, no key) |
+| Local (vLLM-mlx) | Any OpenAI-compatible local server | `LOCAL_OPENAI_BASE_URL` |
+| MLX (deprecated) | Direct in-process MLX | (local, no key) |
 
 ## Configuration
 
@@ -205,6 +224,10 @@ config = ModelConfig(
 
     # Scaffolding: auto | open | guided | structured
     scaffolding_preference="auto",
+
+    # Local inference server (vLLM-mlx, LM Studio, Ollama)
+    local_server_url="http://localhost:8000/v1",
+    local_model_name="default",
 )
 
 budget = RecursionBudget(
@@ -217,7 +240,7 @@ budget = RecursionBudget(
 ## Running Tests
 
 ```bash
-# All unit tests (185 tests)
+# All unit tests (287 tests)
 uv run pytest tests/ --ignore=tests/test_integration.py -v
 
 # Integration tests (requires API keys)
@@ -248,6 +271,26 @@ uv run python -m examples.ablations.recursive_vs_single
 ```
 
 See `examples/dashboard.py` for a summary dashboard across ablation results.
+
+## Benchmarks
+
+Three benchmark suites in `rde/benchmarks/` for evaluating long-context and reasoning capabilities:
+
+```bash
+# Run OOLONG benchmark (long-context QA, 400 questions per context length)
+uv run python -m rde.benchmarks.runner --benchmark oolong --context-len 1024
+
+# Run S-NIAH benchmark (needle-in-a-haystack)
+uv run python -m rde.benchmarks.runner --benchmark s_niah --context-len 1024
+
+# Run OOLONG-Pairs benchmark (relational memory)
+uv run python -m rde.benchmarks.runner --benchmark oolong_pairs --context-len 1024
+
+# Run baselines (single model, no RDE)
+uv run python -m rde.benchmarks.runner --benchmark oolong --baseline --model claude-sonnet-4-5-20250929
+```
+
+Benchmark results at 1K context with Claude Sonnet: OOLONG 80.9%, S-NIAH 100%, OOLONG-Pairs 100%.
 
 ## Training Data Pipeline
 
@@ -281,7 +324,8 @@ rde/
 ├── arbiter.py          # Recursive causal arbitration
 ├── models.py           # Pydantic data models
 ├── cli.py              # CLI entry point
-├── providers/          # 7 model providers + router
+├── benchmarks/         # OOLONG, S-NIAH, OOLONG-Pairs evaluation
+├── providers/          # 8 model providers + router
 ├── prompts/            # System prompts and templates
 ├── sandbox/            # Code execution (local, Modal, E2B)
 ├── training/           # Training data pipeline
@@ -294,7 +338,10 @@ rde/
     ├── extraction.py    # JSON/boxed answer extraction
     └── visualizer.py    # Call tree visualization
 
-tests/                  # 185 unit tests
+scripts/
+└── run_vllm_mlx.sh     # Launch vLLM-mlx local server
+
+tests/                  # 287 unit tests
 examples/
 ├── ablations/          # 10 ablation study scripts
 ├── training/           # Training pipeline examples

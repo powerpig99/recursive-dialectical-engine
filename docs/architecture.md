@@ -112,11 +112,12 @@ TraceResult (produced by TraceExecutor)
   │  trace_id, role, model_used
   │  raw_output, extracted_answer
   │  error, latency_ms, token_usage
+  │  fallback_used, original_model
   │
   ▼
 NormalizedTrace (produced by TraceNormalizer)
   │  conclusion, reasoning_chain
-  │  confidence, model_family
+  │  confidence (calibrated per model family), model_family
   │
   ▼
 ArbitrationResult (produced by Arbiter)
@@ -138,19 +139,25 @@ EngineResult (final output)
 
 ```
 BaseProvider (abstract)
+  │  complete() → LLMResponse (content, model, usage, latency_ms, estimated_cost)
+  │  supports_model() → bool
+  │  close()
   │
-  ├── AnthropicProvider  → Claude models
-  ├── OpenAIProvider     → GPT models
-  ├── GoogleProvider     → Gemini models
+  ├── AnthropicProvider  → Claude models (COSTS dict, per-token pricing)
+  ├── OpenAIProvider     → GPT models (COSTS dict, per-token pricing)
+  ├── GoogleProvider     → Gemini models (COSTS dict, per-token pricing)
   ├── XAIProvider        → Grok models
   ├── KimiProvider       → Moonshot models
   ├── HuggingFaceProvider → HF Inference API
-  └── MLXProvider        → Local quantized models
+  ├── LocalOpenAIProvider → vLLM-mlx / LM Studio / Ollama (httpx, async, cost=0)
+  └── MLXProvider (deprecated) → Direct in-process MLX (serial, no batching)
 
 ModelRouter
-  ├── Auto-discovers providers from API keys
+  ├── Auto-discovers providers from API keys + LOCAL_OPENAI_BASE_URL
   ├── Routes model identifiers to providers
   ├── Assigns trace models (round_robin / random)
+  ├── Supports "family:model" preference syntax (e.g., "local:qwen3-8b")
+  ├── get_fallback_model() → alternate model from different provider family
   └── Manages provider lifecycle
 ```
 
