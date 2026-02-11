@@ -20,7 +20,7 @@ Documenting what was built in each phase, what worked as designed, what needed a
 **Planned**: Provider abstraction, ContextEnvironment, basic orchestrator, normalizer.
 
 **Built**:
-- 7 providers: Anthropic, OpenAI, Google, xAI, Kimi, HuggingFace, MLX
+- 7 providers: Anthropic, OpenAI, Google, xAI, Kimi, MLX, LocalOpenAI (added Phase 8)
 - ModelRouter with auto-discovery from environment variables
 - ContextEnvironment with peek/search/partition/spawn_sub_lm
 - Orchestrator with LLM-driven trace design and fallback to defaults
@@ -161,7 +161,7 @@ Documenting what was built in each phase, what worked as designed, what needed a
 
 **Benchmark baselines** (1K context, Claude Sonnet): OOLONG 80.9%, S-NIAH 100%, OOLONG-Pairs 100%.
 
-**Changes**: 287 tests (up from 185 in Phase 7). 8 providers (up from 7). MLXProvider deprecated but retained for backward compatibility.
+**Changes**: 291 tests (up from 185 in Phase 7). 7 providers (Anthropic, OpenAI, Google, xAI, Kimi, LocalOpenAI, MLX deprecated). HuggingFace provider was planned but never implemented.
 
 ## Cross-Cutting Learnings
 

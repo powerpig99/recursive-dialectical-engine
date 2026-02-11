@@ -10,7 +10,7 @@ The Recursive Dialectical Engine (RDE) is an AI reasoning architecture that unif
 
 It solves two LLM structural failures: **context rot** (orthogonality shattering in attention) and **probabilistic collapse** (single-pass can't sustain independent projections for logical reasoning).
 
-**Status**: Implemented through Phase 8. Core engine, 8 providers, benchmarks, training pipeline, and ablation studies are all functional. 291 unit tests, lint clean. Local benchmark validation complete — REPL implementation gap identified (see Phase 8 notes).
+**Status**: Archived. Superseded by [Context Engine](https://github.com/powerpig99/context-engine). Core engine, 7 providers, benchmarks, training pipeline, and ablation studies are all functional. 291 unit tests, lint clean. Local benchmark validation complete — REPL implementation gap identified (see Phase 8 notes).
 
 **Prior work**: Evolves [Dialectical-TTS](https://github.com/powerpig99/Dialectical-TTS). Informed by [RLM (Zhang et al.)](https://arxiv.org/abs/2512.24601) and [Not a ToE](https://github.com/powerpig99/ontological-clarity).
 
@@ -31,7 +31,7 @@ User Prompt → ContextEnvironment (REPL) → Orchestrator → N Independent Tra
 | `Trace` | `rde/trace.py` | Independent LM call with own system prompt, model, context strategy. Can recursively spawn sub-traces (sub-dialectics) |
 | `RecursiveArbiter` | `rde/arbiter.py` | Resolves traces through Logic of Necessity. Detects interference. Spawns sub-arbitration on unresolved dimensions. Reports shadows |
 | `TraceNormalizer` | `rde/normalizer.py` | Makes heterogeneous model outputs comparable (not agreeable) before arbitration |
-| Providers | `rde/providers/` | Abstraction over Anthropic, OpenAI, Google, xAI, Kimi, HuggingFace, LocalOpenAI (vLLM-mlx) APIs. Per-provider cost tracking |
+| Providers | `rde/providers/` | Abstraction over Anthropic, OpenAI, Google, xAI, Kimi, LocalOpenAI (vLLM-mlx) APIs. Per-provider cost tracking. MLX (deprecated) |
 | Sandbox | `rde/sandbox/` | Isolated REPL execution (Modal, E2B, or local subprocess) |
 
 ### Multi-Model Architecture (Core Design Principle)
@@ -45,7 +45,7 @@ Model diversity IS projection independence. Different model families encode diff
 ## Tech Stack
 
 - **Runtime**: Python 3.11+
-- **LM Access**: Anthropic, OpenAI, Google, xAI, Kimi, HuggingFace native SDKs + httpx for local
+- **LM Access**: Anthropic, OpenAI, Google, xAI, Kimi native SDKs + httpx for local
 - **Local inference**: vLLM-mlx (OpenAI-compatible server on Apple Silicon) via `LocalOpenAIProvider`. Also works with LM Studio, Ollama, or any OpenAI-compatible endpoint. Legacy `MLXProvider` (deprecated) for direct in-process MLX
 - **REPL Sandbox**: Local subprocess (functional), Modal / E2B (stubs)
 - **Orchestration**: `asyncio` + provider async clients

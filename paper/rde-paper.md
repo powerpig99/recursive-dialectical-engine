@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Large language models collapse high-dimensional problems into single projections determined by their training distribution. We present the Recursive Dialectical Engine (RDE), an architecture that synthesizes two complementary approaches: REPL-based context externalization, as introduced by Recursive Language Models (Zhang et al., 2025), and multi-model dialectical composition with causal arbitration. RDE runs independent traces across different model families — each with its own REPL session for programmatic context interaction — then resolves disagreements through causal necessity rather than voting. Where RLM demonstrates that a single model gains dramatic improvements from REPL-based recursive decomposition, RDE extends this by running multiple models' REPL sessions in parallel, providing structural independence that same-model recursion cannot achieve. We evaluate on long-context benchmarks (OOLONG, OOLONG-Pairs, S-NIAH) and compare directly against RLM's published results. The implementation supports 7 model providers, 6 independence metrics, REPL-enabled trace execution, and 227 unit tests.
+Large language models collapse high-dimensional problems into single projections determined by their training distribution. We present the Recursive Dialectical Engine (RDE), an architecture that synthesizes two complementary approaches: REPL-based context externalization, as introduced by Recursive Language Models (Zhang et al., 2025), and multi-model dialectical composition with causal arbitration. RDE runs independent traces across different model families — each with its own REPL session for programmatic context interaction — then resolves disagreements through causal necessity rather than voting. Where RLM demonstrates that a single model gains dramatic improvements from REPL-based recursive decomposition, RDE extends this by running multiple models' REPL sessions in parallel, providing structural independence that same-model recursion cannot achieve. We evaluate on long-context benchmarks (OOLONG, OOLONG-Pairs, S-NIAH) and compare directly against RLM's published results. The implementation supports 7 model providers, 6 independence metrics, REPL-enabled trace execution, and 291 unit tests.
 
 ## 1. Introduction
 
@@ -21,7 +21,7 @@ RDE synthesizes two prior approaches: (1) the REPL-based context externalization
 3. Six independence metrics for measuring trace orthogonality, including agreement-for-different-reasons detection.
 4. A training data pipeline with three distillation strategies for fine-tuning single models on multi-model dialectical outputs.
 5. Empirical evaluation on long-context benchmarks (OOLONG, OOLONG-Pairs, S-NIAH), comparing multi-model RDE against single-model RLM and base model performance.
-6. An open-source implementation with 7 providers, REPL-enabled trace execution, 227 tests, and 10 ablation configurations.
+6. An open-source implementation with 7 providers, REPL-enabled trace execution, 291 tests, and 10 ablation configurations.
 
 ## 2. Background and Related Work
 
