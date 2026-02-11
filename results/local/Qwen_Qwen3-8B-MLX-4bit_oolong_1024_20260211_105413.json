@@ -1,0 +1,221 @@
+{
+  "local_dialectical_same/oolong": {
+    "benchmark_name": "oolong",
+    "config_name": "Local dialectical 3x (Qwen/Qwen3-8B-MLX-4bit)",
+    "aggregate_score": 44.84375,
+    "aggregate_metric": "accuracy",
+    "num_tasks": 50,
+    "total_latency_ms": 9958476.869417004,
+    "total_llm_calls": 3618,
+    "task_scores": [
+      {
+        "task_id": "oolong_710070024",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_410040044",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_910090008",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_910090014",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_710070021",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_710070003",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_910090040",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_610060022",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_710070032",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_210020017",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_910090042",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_210020030",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_810080038",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_310030013",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_310030022",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_310030039",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_810080043",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_510050042",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_410040049",
+        "score": 0.421875
+      },
+      {
+        "task_id": "oolong_410040003",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_710070046",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_910090019",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_710070026",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_410040027",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_810080009",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_410040018",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_910090048",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_810080002",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_310030042",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_310030047",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_710070034",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_710070028",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_710070019",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_510050034",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_410040005",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_810080034",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_310030029",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_210020005",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_410040009",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_710070018",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_510050236",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_210020014",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_710070005",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_510050230",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_810080029",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_310030006",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_710070015",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_410040047",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_210020047",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_610060043",
+        "score": 0.0
+      }
+    ],
+    "independence": {
+      "conclusion_agreement": 0.00902061855670103,
+      "model_diversity_score": 0.010309278350515464,
+      "avg_reasoning_divergence": 0.9484011571795142,
+      "avg_jaccard_distance": 0.827439914525189,
+      "agreement_for_different_reasons_count": 38,
+      "summary": "Traces: 97 | Model diversity: 0.01\nConclusion agreement: 0.01 | Avg Jaccard distance: 0.83\nAvg reasoning divergence: 0.95\nAgreement-for-different-reasons pairs: 38"
+    }
+  }
+}

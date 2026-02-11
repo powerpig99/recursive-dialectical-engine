@@ -10,7 +10,7 @@ The Recursive Dialectical Engine (RDE) is an AI reasoning architecture that unif
 
 It solves two LLM structural failures: **context rot** (orthogonality shattering in attention) and **probabilistic collapse** (single-pass can't sustain independent projections for logical reasoning).
 
-**Status**: Implemented through Phase 8. Core engine, 8 providers, benchmarks, training pipeline, and ablation studies are all functional. 287 unit tests, lint clean.
+**Status**: Implemented through Phase 8. Core engine, 8 providers, benchmarks, training pipeline, and ablation studies are all functional. 291 unit tests, lint clean. Local benchmark validation complete — REPL implementation gap identified (see Phase 8 notes).
 
 **Prior work**: Evolves [Dialectical-TTS](https://github.com/powerpig99/Dialectical-TTS). Informed by [RLM (Zhang et al.)](https://arxiv.org/abs/2512.24601) and [Not a ToE](https://github.com/powerpig99/ontological-clarity).
 
@@ -50,7 +50,7 @@ Model diversity IS projection independence. Different model families encode diff
 - **REPL Sandbox**: Local subprocess (functional), Modal / E2B (stubs)
 - **Orchestration**: `asyncio` + provider async clients
 - **Benchmarks**: OOLONG (long-context QA), S-NIAH (needle-in-a-haystack), OOLONG-Pairs (relational memory)
-- **Testing**: pytest + pytest-asyncio, 287 unit tests
+- **Testing**: pytest + pytest-asyncio, 291 unit tests
 
 ## Design Axioms (Non-Negotiable)
 
@@ -87,6 +87,13 @@ The architecture derives from the Not a ToE framework. Key mapping:
    - OOLONG, S-NIAH, OOLONG-Pairs benchmark suite (`rde/benchmarks/`)
    - Kimi implementation audit: ported JSON repair, trace fallback, cost tracking, line-based env ops, confidence calibration
    - Codex implementation audit: replaced MLXProvider with LocalOpenAIProvider (vLLM-mlx), added `family:model` preference syntax, vLLM-mlx startup script
+   - Local benchmark infrastructure: 5 configs (`local_vanilla`, `local_repl`, `local_dialectical_same`, `local_dialectical_repl_same`, `local_dialectical_2iter`), overnight runner, analysis scripts
+   - **Local benchmark results** (Qwen3-8B-MLX-4bit, 50 tasks):
+     - Vanilla: OOLONG 66%, S-NIAH 100%, OOLONG-Pairs 10%
+     - REPL: OOLONG 16%, S-NIAH 20%, OOLONG-Pairs 14% — catastrophic regression
+     - Dialectical 3x: OOLONG 45%, S-NIAH 100% — worse than vanilla at scale
+   - **REPL gap analysis**: 10 architectural differences from RLM repo identified (code block extraction, system prompt quality, per-iteration guidance, FINAL_VAR, max iterations, etc.)
+   - **Next**: Reproduce RLM results with their actual framework on Qwen3-8B before fixing our REPL
 
 ## Development Workflow
 

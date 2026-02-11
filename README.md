@@ -240,7 +240,7 @@ budget = RecursionBudget(
 ## Running Tests
 
 ```bash
-# All unit tests (287 tests)
+# All unit tests (291 tests)
 uv run pytest tests/ --ignore=tests/test_integration.py -v
 
 # Integration tests (requires API keys)
@@ -292,6 +292,32 @@ uv run python -m rde.benchmarks.runner --benchmark oolong --baseline --model cla
 
 Benchmark results at 1K context with Claude Sonnet: OOLONG 80.9%, S-NIAH 100%, OOLONG-Pairs 100%.
 
+### Local Model Benchmarks
+
+```bash
+# Run local benchmarks (requires vLLM-mlx or compatible server on port 8000)
+uv run python -m examples.benchmarks.run_local_benchmarks --config local_vanilla --benchmark oolong
+
+# Run all local configs
+uv run python -m examples.benchmarks.run_local_benchmarks --config local_all
+
+# Run overnight (all configs × all benchmarks)
+./scripts/run_overnight_local.sh
+
+# Analyze results
+uv run python -m examples.benchmarks.analyze_results --dir results/local/
+```
+
+Local results (Qwen3-8B-MLX-4bit, 50 tasks, 1K context):
+
+| Config | OOLONG | S-NIAH | OOLONG-Pairs |
+|--------|--------|--------|--------------|
+| Vanilla | 66.0% | 100.0% | 10.0% |
+| REPL | 16.1% | 20.0% | 14.4% |
+| Dialectical 3x | 44.8% | 100.0% | — |
+
+**Finding**: Our REPL implementation has critical architectural gaps vs the [RLM reference](https://github.com/alexzhang13/rlm). Reproduction with their framework is needed before improving ours.
+
 ## Training Data Pipeline
 
 Phase 6 provides tools to distill RDE's multi-model reasoning into training data for single-model fine-tuning:
@@ -339,13 +365,17 @@ rde/
     └── visualizer.py    # Call tree visualization
 
 scripts/
-└── run_vllm_mlx.sh     # Launch vLLM-mlx local server
+├── run_vllm_mlx.sh         # Launch vLLM-mlx local server
+└── run_overnight_local.sh  # Overnight local benchmark runner
 
-tests/                  # 287 unit tests
+tests/                      # 291 unit tests
 examples/
-├── ablations/          # 10 ablation study scripts
-├── training/           # Training pipeline examples
-└── dashboard.py        # Results dashboard
+├── ablations/              # 10 ablation study scripts
+├── benchmarks/             # Local benchmark scripts
+│   ├── run_local_benchmarks.py  # CLI for local model benchmarking
+│   └── analyze_results.py       # Result analysis and comparison tables
+├── training/               # Training pipeline examples
+└── dashboard.py            # Results dashboard
 ```
 
 ## License

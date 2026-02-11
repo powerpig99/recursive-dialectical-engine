@@ -1,0 +1,61 @@
+{
+  "local_repl/oolong_pairs": {
+    "benchmark_name": "oolong_pairs",
+    "config_name": "Local REPL (Qwen/Qwen3-8B-MLX-4bit)",
+    "aggregate_score": 14.444444444444443,
+    "aggregate_metric": "f1",
+    "num_tasks": 10,
+    "total_latency_ms": 6774045.3007079195,
+    "total_llm_calls": 498,
+    "task_scores": [
+      {
+        "task_id": "oolong_pairs_001",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_002",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_003",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_004",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_005",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_pairs_006",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_007",
+        "score": 0.4444444444444445
+      },
+      {
+        "task_id": "oolong_pairs_008",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_009",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_010",
+        "score": 0.0
+      }
+    ],
+    "independence": {
+      "conclusion_agreement": 0.0,
+      "model_diversity_score": 0.5,
+      "avg_reasoning_divergence": 1.0,
+      "avg_jaccard_distance": 0.7558823529411764,
+      "agreement_for_different_reasons_count": 0,
+      "summary": "Traces: 2 | Model diversity: 0.50\nConclusion agreement: 0.00 | Avg Jaccard distance: 0.76\nAvg reasoning divergence: 1.00\nAgreement-for-different-reasons pairs: 0"
+    }
+  }
+}

@@ -220,7 +220,7 @@ class ContextEnvironment:
 
         # Track budget
         if self._budget:
-            self._budget.record_call()
+            self._budget.record_call(response.estimated_cost)
 
         # Log
         log_entry = {

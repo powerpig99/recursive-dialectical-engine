@@ -1,0 +1,61 @@
+{
+  "local_repl/sniah": {
+    "benchmark_name": "sniah",
+    "config_name": "Local REPL (Qwen/Qwen3-8B-MLX-4bit)",
+    "aggregate_score": 20.0,
+    "aggregate_metric": "exact_match",
+    "num_tasks": 10,
+    "total_latency_ms": 1670359.0259981574,
+    "total_llm_calls": 199,
+    "task_scores": [
+      {
+        "task_id": "sniah_1k_000",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_001",
+        "score": 0.0
+      },
+      {
+        "task_id": "sniah_1k_002",
+        "score": 0.0
+      },
+      {
+        "task_id": "sniah_1k_003",
+        "score": 0.0
+      },
+      {
+        "task_id": "sniah_1k_004",
+        "score": 0.0
+      },
+      {
+        "task_id": "sniah_1k_005",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_006",
+        "score": 0.0
+      },
+      {
+        "task_id": "sniah_1k_007",
+        "score": 0.0
+      },
+      {
+        "task_id": "sniah_1k_008",
+        "score": 0.0
+      },
+      {
+        "task_id": "sniah_1k_009",
+        "score": 0.0
+      }
+    ],
+    "independence": {
+      "conclusion_agreement": 0.0,
+      "model_diversity_score": 0.14285714285714285,
+      "avg_reasoning_divergence": 0.5182969739619987,
+      "avg_jaccard_distance": 0.767298623511873,
+      "agreement_for_different_reasons_count": 0,
+      "summary": "Traces: 7 | Model diversity: 0.14\nConclusion agreement: 0.00 | Avg Jaccard distance: 0.77\nAvg reasoning divergence: 0.52\nAgreement-for-different-reasons pairs: 0"
+    }
+  }
+}

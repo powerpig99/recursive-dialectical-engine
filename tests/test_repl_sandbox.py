@@ -28,8 +28,10 @@ def sandbox_with_router(env):
     router = MagicMock()
     response = MagicMock()
     response.content = "The answer is 42."
+    response.estimated_cost = 0.0
     router.complete = AsyncMock(return_value=response)
     env._router = router
+    env._sub_lm_models = ["test-model"]
     return REPLSandbox(env, router=router)
 
 
@@ -127,3 +129,11 @@ async def test_timeout_enforcement(env):
     # The key assertion: if it timed out, the flag should be set
     if result.timed_out:
         assert not result.success
+
+
+@pytest.mark.asyncio
+async def test_llm_query_from_repl(sandbox_with_router):
+    """llm_query() works from REPL code."""
+    result = await sandbox_with_router.execute("print(llm_query('What is the answer?'))")
+    assert result.success
+    assert "The answer is 42." in result.stdout

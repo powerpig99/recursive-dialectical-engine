@@ -1,0 +1,61 @@
+{
+  "local_dialectical_same/sniah": {
+    "benchmark_name": "sniah",
+    "config_name": "Local dialectical 3x (Qwen/Qwen3-8B-MLX-4bit)",
+    "aggregate_score": 100.0,
+    "aggregate_metric": "exact_match",
+    "num_tasks": 10,
+    "total_latency_ms": 478317.1812911751,
+    "total_llm_calls": 100,
+    "task_scores": [
+      {
+        "task_id": "sniah_1k_000",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_001",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_002",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_003",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_004",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_005",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_006",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_007",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_008",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_009",
+        "score": 1.0
+      }
+    ],
+    "independence": {
+      "conclusion_agreement": 0.015151515151515152,
+      "model_diversity_score": 0.08333333333333333,
+      "avg_reasoning_divergence": 0.16666666666666666,
+      "avg_jaccard_distance": 0.7706631431852166,
+      "agreement_for_different_reasons_count": 0,
+      "summary": "Traces: 12 | Model diversity: 0.08\nConclusion agreement: 0.02 | Avg Jaccard distance: 0.77\nAvg reasoning divergence: 0.17\nAgreement-for-different-reasons pairs: 0"
+    }
+  }
+}

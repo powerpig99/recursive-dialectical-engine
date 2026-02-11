@@ -1,0 +1,53 @@
+{
+  "local_vanilla/oolong_pairs": {
+    "benchmark_name": "oolong_pairs",
+    "config_name": "Local vanilla (Qwen/Qwen3-8B-MLX-4bit)",
+    "aggregate_score": 10.0,
+    "aggregate_metric": "f1",
+    "num_tasks": 10,
+    "total_latency_ms": 1110183.3238761174,
+    "total_llm_calls": 10,
+    "task_scores": [
+      {
+        "task_id": "oolong_pairs_001",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_002",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_003",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_004",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_005",
+        "score": 1.0
+      },
+      {
+        "task_id": "oolong_pairs_006",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_007",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_008",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_009",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_010",
+        "score": 0.0
+      }
+    ]
+  }
+}

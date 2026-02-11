@@ -22,6 +22,7 @@ def _make_router_mock(responses: list[str]) -> MagicMock:
         resp.model = "mock-model"
         resp.latency_ms = 10.0
         resp.usage = {}
+        resp.estimated_cost = 0.0
         mock_responses.append(resp)
     router.complete = AsyncMock(side_effect=mock_responses)
     return router

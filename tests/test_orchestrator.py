@@ -25,6 +25,7 @@ from rde.prompts.orchestrator import (
     build_orchestrator_messages,
     build_reframing_messages,
 )
+from rde.prompts.traces import DEFAULT_STRUCTURED_TRACES
 from rde.providers.base import BaseProvider, LLMResponse
 
 
@@ -340,6 +341,44 @@ async def test_orchestrator_reframing(monkeypatch):
     traces2 = await orchestrator.design_traces_for_iteration(env, prior, iteration=2)
     assert traces2[0].role == "Forward-Chain"
     assert len(traces2) == 2
+
+
+class EmptyTraceProvider(BaseProvider):
+    async def complete(self, messages, model, temperature=0.7, max_tokens=4096, response_format=None):
+        response = json.dumps({
+            "problem_type": "unknown",
+            "decomposition_rationale": "none",
+            "constraint_level": "open",
+            "traces": [],
+        })
+        return LLMResponse(content=response, model=model, latency_ms=5.0)
+
+    def supports_model(self, model: str) -> bool:
+        return True
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_empty_traces_falls_back(monkeypatch):
+    """Empty orchestrator output should fall back to defaults."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+
+    from rde.providers.router import ModelRouter
+
+    config = ModelConfig(orchestrator_model="test-orch")
+    router = ModelRouter(config)
+    router._providers = {"test": EmptyTraceProvider()}
+
+    orchestrator = Orchestrator(router, "test-orch")
+    env = ContextEnvironment("test problem")
+
+    traces = await orchestrator.design_traces(env)
+
+    assert traces  # fallback should be non-empty
+    assert traces[0].role == DEFAULT_STRUCTURED_TRACES[0]["role"]
 
 
 # ---------------------------------------------------------------------------

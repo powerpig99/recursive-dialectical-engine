@@ -1,0 +1,33 @@
+{
+  "local_vanilla/oolong_pairs": {
+    "benchmark_name": "oolong_pairs",
+    "config_name": "Local vanilla (Qwen/Qwen3-8B-MLX-4bit)",
+    "aggregate_score": 20.0,
+    "aggregate_metric": "f1",
+    "num_tasks": 5,
+    "total_latency_ms": 613496.15262507,
+    "total_llm_calls": 5,
+    "task_scores": [
+      {
+        "task_id": "oolong_pairs_001",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_002",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_003",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_004",
+        "score": 0.0
+      },
+      {
+        "task_id": "oolong_pairs_005",
+        "score": 1.0
+      }
+    ]
+  }
+}
