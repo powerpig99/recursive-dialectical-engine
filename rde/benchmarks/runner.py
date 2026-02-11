@@ -18,6 +18,7 @@ from typing import Any
 from ..engine import DialecticalEngine
 from ..models import ModelConfig, RecursionBudget
 from ..providers.router import ModelRouter
+from ..utils.metrics import IndependenceReport, compute_all
 from .datasets import BenchmarkDataset, BenchmarkTask, OolongLoader, OolongPairsLoader, SNIAHLoader
 from .scoring import exact_match, f1_pairs, oolong_accuracy, oolong_score
 
@@ -67,6 +68,7 @@ class BenchmarkResult:
     aggregate_metric: str = ""  # "accuracy" | "f1" | "exact_match"
     total_latency_ms: float = 0.0
     total_llm_calls: int = 0
+    independence_report: IndependenceReport | None = None
 
     @property
     def num_tasks(self) -> int:
@@ -251,6 +253,7 @@ class BenchmarkRunner:
     ) -> BenchmarkResult:
         """Run through the full dialectical engine (for RDE configurations)."""
         task_results = []
+        all_normalized_traces = []
         budget = RecursionBudget(max_cost_usd=self.max_cost_usd, max_total_calls=500)
 
         async with DialecticalEngine(self.engine_config) as engine:
@@ -272,6 +275,10 @@ class BenchmarkRunner:
                     )
 
                     elapsed_ms = (time.perf_counter() - start) * 1000
+
+                    # Collect normalized traces for independence metrics
+                    if result.normalized_traces:
+                        all_normalized_traces.extend(result.normalized_traces)
 
                     # Collect all raw outputs for scoring
                     full_output = result.resolution
@@ -303,6 +310,17 @@ class BenchmarkRunner:
                         raw_output=str(e),
                     ))
 
+        # Compute independence metrics across all collected traces
+        independence_report = None
+        if len(all_normalized_traces) >= 2:
+            try:
+                independence_report = await compute_all(
+                    all_normalized_traces, include_embeddings=False
+                )
+                logger.info("Independence: %s", independence_report.summary)
+            except Exception as e:
+                logger.warning("Independence metrics failed: %s", e)
+
         # Aggregate
         scores = [tr.score for tr in task_results]
         aggregate = sum(scores) / len(scores) * 100 if scores else 0.0
@@ -315,6 +333,7 @@ class BenchmarkRunner:
             aggregate_metric=metric_name,
             total_latency_ms=sum(tr.latency_ms for tr in task_results),
             total_llm_calls=sum(tr.llm_calls for tr in task_results),
+            independence_report=independence_report,
         )
 
     def _score_task(self, task: BenchmarkTask, resolution: str) -> float:
@@ -457,7 +476,7 @@ class BenchmarkRunner:
 
         serialized = {}
         for name, result in results.items():
-            serialized[name] = {
+            entry: dict = {
                 "benchmark_name": result.benchmark_name,
                 "config_name": result.config_name,
                 "aggregate_score": result.aggregate_score,
@@ -470,6 +489,11 @@ class BenchmarkRunner:
                     for tr in result.task_results
                 ],
             }
+            if result.independence_report is not None:
+                entry["independence"] = result.independence_report.model_dump(
+                    exclude={"pairwise_metrics", "embedding_distances"}
+                )
+            serialized[name] = entry
 
         path.write_text(json.dumps(serialized, indent=2))
         logger.info("Results saved to %s", path)

@@ -27,6 +27,7 @@ class LocalOpenAIProvider(BaseProvider):
         LOCAL_OPENAI_BASE_URL: Server base URL (default: http://localhost:8000/v1)
         LOCAL_OPENAI_MODEL: Default model name (default: "default")
         LOCAL_OPENAI_API_KEY: Optional API key for the server
+        LOCAL_OPENAI_TIMEOUT: Request timeout in seconds (default: 300)
     """
 
     def __init__(
@@ -43,6 +44,7 @@ class LocalOpenAIProvider(BaseProvider):
             or os.environ.get("LOCAL_OPENAI_MODEL", "default")
         )
         self._api_key = os.environ.get("LOCAL_OPENAI_API_KEY")
+        self._timeout = int(os.environ.get("LOCAL_OPENAI_TIMEOUT", "300"))
 
     async def complete(
         self,
@@ -69,7 +71,7 @@ class LocalOpenAIProvider(BaseProvider):
         url = f"{self.base_url}/chat/completions"
 
         start = time.perf_counter()
-        async with httpx.AsyncClient(timeout=120) as client:
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(url, headers=headers, json=payload)
             if resp.status_code >= 400:
                 raise RuntimeError(
@@ -98,15 +100,48 @@ class LocalOpenAIProvider(BaseProvider):
         )
 
     def supports_model(self, model: str) -> bool:
+        if not model:
+            return False
+
         model_lower = model.lower()
+        if model_lower == "local" or model_lower == self.default_model.lower():
+            return True
+
+        # Avoid hijacking known non-local providers
+        if model_lower.startswith(("openrouter/", "anthropic/", "google/")):
+            return False
+        if any(
+            prefix in model_lower
+            for prefix in ("gpt", "o1", "o3", "o4", "claude", "gemini", "grok", "xai", "kimi")
+        ):
+            return False
+
+        # Local backends / paths / HF-style repo ids
         return (
-            model_lower == "local"
-            or model_lower == self.default_model.lower()
-            or "vllm" in model_lower
+            "vllm" in model_lower
             or "mlx" in model_lower
             or model_lower.startswith("~/models")
             or model_lower.startswith("/")
+            or "/" in model  # HF-style repo id, e.g. Qwen/Qwen3-8B
         )
+
+    async def check_health(self) -> dict:
+        """Check server health and return loaded model info.
+
+        Returns dict with 'ok' bool and 'models' list of model IDs,
+        or 'ok': False with 'error' on failure.
+        """
+        url = f"{self.base_url}/models"
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(url)
+                if resp.status_code >= 400:
+                    return {"ok": False, "error": f"HTTP {resp.status_code}"}
+                data = resp.json()
+                models = [m.get("id", "") for m in data.get("data", [])]
+                return {"ok": True, "models": models}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     async def close(self) -> None:
         pass  # httpx.AsyncClient is created per-request

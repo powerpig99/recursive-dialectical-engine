@@ -1,0 +1,53 @@
+{
+  "local_vanilla/sniah": {
+    "benchmark_name": "sniah",
+    "config_name": "Local vanilla (Qwen/Qwen3-8B-MLX-4bit)",
+    "aggregate_score": 100.0,
+    "aggregate_metric": "exact_match",
+    "num_tasks": 10,
+    "total_latency_ms": 96390.37145802286,
+    "total_llm_calls": 10,
+    "task_scores": [
+      {
+        "task_id": "sniah_1k_000",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_001",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_002",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_003",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_004",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_005",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_006",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_007",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_008",
+        "score": 1.0
+      },
+      {
+        "task_id": "sniah_1k_009",
+        "score": 1.0
+      }
+    ]
+  }
+}

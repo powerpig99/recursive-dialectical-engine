@@ -1,0 +1,8 @@
+local_vanilla/oolong@1024                          66.0% accuracy
+local_vanilla/sniah@1024                           100.0% accuracy
+local_vanilla/oolong_pairs@4096                    10.0% F1
+local_repl/oolong@1024                             16.1% accuracy
+local_repl/sniah@1024                              20.0% accuracy
+local_repl/oolong_pairs@4096                       14.4% F1
+local_dialectical_same/oolong@1024                 44.8% accuracy
+local_dialectical_same/sniah@1024                  100.0% accuracy

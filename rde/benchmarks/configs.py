@@ -113,7 +113,102 @@ def vanilla_base_gemini_config() -> tuple[str, ModelConfig, dict]:
     return vanilla_base_config("gemini-2.5-flash")
 
 
+# ---------------------------------------------------------------------------
+# Local model configs (vLLM-mlx / LM Studio / Ollama)
+# ---------------------------------------------------------------------------
+
+
+def local_vanilla_config(model: str = "local") -> tuple[str, ModelConfig, dict]:
+    """Single local model, single pass — baseline."""
+    config = ModelConfig(
+        orchestrator_model=model,
+        arbiter_model=model,
+        trace_models=[model],
+        sub_lm_models=[model],
+    )
+    run_opts = {
+        "execution_mode": "direct",
+        "use_orchestrator": False,
+        "max_iterations": 1,
+        "num_traces": 1,
+    }
+    return f"Local vanilla ({model})", config, run_opts
+
+
+def local_repl_config(model: str = "local") -> tuple[str, ModelConfig, dict]:
+    """Single local model with REPL — RLM equivalent."""
+    config = ModelConfig(
+        orchestrator_model=model,
+        arbiter_model=model,
+        trace_models=[model],
+        sub_lm_models=[model],
+    )
+    run_opts = {
+        "execution_mode": "repl",
+        "use_orchestrator": False,
+        "max_iterations": 1,
+        "num_traces": 1,
+    }
+    return f"Local REPL ({model})", config, run_opts
+
+
+def local_dialectical_same_config(model: str = "local") -> tuple[str, ModelConfig, dict]:
+    """3x same local model, dialectical — multi-trace without model diversity."""
+    config = ModelConfig(
+        orchestrator_model=model,
+        arbiter_model=model,
+        trace_models=[model, model, model],
+        sub_lm_models=[model],
+        orchestrator_temperature=0.3,
+        arbiter_temperature=0.1,
+    )
+    run_opts = {
+        "execution_mode": "direct",
+        "use_orchestrator": True,
+        "max_iterations": 1,
+    }
+    return f"Local dialectical 3x ({model})", config, run_opts
+
+
+def local_dialectical_repl_same_config(model: str = "local") -> tuple[str, ModelConfig, dict]:
+    """3x same local model, REPL + dialectical — full RDE, same model."""
+    config = ModelConfig(
+        orchestrator_model=model,
+        arbiter_model=model,
+        trace_models=[model, model, model],
+        sub_lm_models=[model],
+        orchestrator_temperature=0.3,
+        arbiter_temperature=0.1,
+    )
+    run_opts = {
+        "execution_mode": "repl",
+        "use_orchestrator": True,
+        "max_iterations": 1,
+    }
+    return f"Local REPL+dialectical 3x ({model})", config, run_opts
+
+
+def local_dialectical_2iter_config(model: str = "local") -> tuple[str, ModelConfig, dict]:
+    """3x same local model, dialectical with 2 iterations — shadow reframing."""
+    config = ModelConfig(
+        orchestrator_model=model,
+        arbiter_model=model,
+        trace_models=[model, model, model],
+        sub_lm_models=[model],
+        orchestrator_temperature=0.3,
+        arbiter_temperature=0.1,
+    )
+    run_opts = {
+        "execution_mode": "direct",
+        "use_orchestrator": True,
+        "max_iterations": 2,
+    }
+    return f"Local dialectical 3x 2-iter ({model})", config, run_opts
+
+
+# Registry of all configs
 ALL_CONFIGS = {
+    # Frontier model configs
     "rde_repl_multi": rde_repl_multi_config,
     "rde_direct_multi": rde_direct_multi_config,
     "single_model_repl": single_model_repl_config,
@@ -122,4 +217,19 @@ ALL_CONFIGS = {
     "vanilla_base": vanilla_base_config,
     "vanilla_base_claude": vanilla_base_claude_config,
     "vanilla_base_gemini": vanilla_base_gemini_config,
+    # Local model configs
+    "local_vanilla": local_vanilla_config,
+    "local_repl": local_repl_config,
+    "local_dialectical_same": local_dialectical_same_config,
+    "local_dialectical_repl_same": local_dialectical_repl_same_config,
+    "local_dialectical_2iter": local_dialectical_2iter_config,
+}
+
+# Subset for quick local-only runs
+LOCAL_CONFIGS = {
+    "local_vanilla": local_vanilla_config,
+    "local_repl": local_repl_config,
+    "local_dialectical_same": local_dialectical_same_config,
+    "local_dialectical_repl_same": local_dialectical_repl_same_config,
+    "local_dialectical_2iter": local_dialectical_2iter_config,
 }

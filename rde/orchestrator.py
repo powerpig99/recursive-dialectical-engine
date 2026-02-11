@@ -93,6 +93,10 @@ class Orchestrator:
             logger.info("Using template for problem type: %s", output.problem_type)
             return [TraceConfig.model_validate(t) for t in template]
 
+        if not output.traces:
+            logger.warning("Orchestrator returned no traces; falling back to defaults")
+            return self._default_traces()
+
         logger.info(
             "Orchestrator designed %d traces for %s problem (constraint: %s)",
             len(output.traces),

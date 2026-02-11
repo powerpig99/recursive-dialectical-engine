@@ -18,6 +18,7 @@ import itertools
 import json
 import logging
 import math
+import os
 import re
 import string
 import time
@@ -78,6 +79,7 @@ class REPLSandbox:
         budget: RecursionBudget | None = None,
         max_output_chars: int = 50_000,
         timeout_seconds: float = 60.0,
+        sandbox_mode: str | None = None,
     ) -> None:
         self._env = environment
         self._router = router
@@ -86,6 +88,35 @@ class REPLSandbox:
         self._timeout = timeout_seconds
         # Persistent state across REPL iterations (like a real REPL)
         self._persistent_vars: dict[str, Any] = {}
+        self._sandbox_mode = sandbox_mode or os.environ.get(
+            "RDE_REPL_SANDBOX_MODE", "in_process"
+        )
+        if self._sandbox_mode not in ("in_process", "subprocess"):
+            raise ValueError(
+                f"Invalid sandbox_mode={self._sandbox_mode}. "
+                "Use 'in_process' or 'subprocess'."
+            )
+        if self._sandbox_mode == "in_process":
+            logger.warning(
+                "REPL sandbox running in-process. This is not a security boundary. "
+                "Set RDE_REPL_SANDBOX_MODE=subprocess for stronger isolation."
+            )
+
+        # Capture main event loop if available (for llm_query from worker threads)
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # Fall back to the current event loop (may not be running yet).
+            try:
+                self._loop = asyncio.get_event_loop()
+            except RuntimeError:
+                self._loop = None
+
+        self._local_sandbox = None
+        if self._sandbox_mode == "subprocess":
+            from .local_sandbox import LocalSandbox
+
+            self._local_sandbox = LocalSandbox(max_timeout=self._timeout)
 
     def _restricted_import(self, name: str, *args: Any, **kwargs: Any) -> Any:
         """Restricted __import__ that only allows whitelisted modules."""
@@ -125,9 +156,8 @@ class REPLSandbox:
         if self._env._router is None:
             return "[NO ROUTER CONFIGURED]"
 
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
+        loop = self._loop
+        if loop is None or loop.is_closed():
             return "[NO EVENT LOOP — llm_query requires async context]"
 
         future = asyncio.run_coroutine_threadsafe(
@@ -148,6 +178,15 @@ class REPLSandbox:
         Runs exec() in a thread to avoid blocking the event loop.
         Captures stdout via StringIO. Enforces timeout.
         """
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        if self._sandbox_mode == "subprocess":
+            return await self._execute_subprocess(code)
+        return await self._execute_in_process(code)
+
+    async def _execute_in_process(self, code: str) -> ExecutionResult:
         namespace = self._build_namespace()
         stdout_capture = io.StringIO()
         start = time.perf_counter()
@@ -193,6 +232,99 @@ class REPLSandbox:
             exit_code=exit_code,
             runtime_ms=elapsed_ms,
         )
+
+    async def _execute_subprocess(self, code: str) -> ExecutionResult:
+        if self._local_sandbox is None:
+            return ExecutionResult(
+                stderr="Subprocess sandbox unavailable",
+                exit_code=1,
+            )
+
+        wrapped_code = self._build_subprocess_code(code)
+        result = await self._local_sandbox.execute(
+            wrapped_code,
+            language="python",
+            timeout_seconds=self._timeout,
+        )
+
+        stdout = result.stdout
+        if stdout:
+            stdout, state = self._extract_state_from_stdout(stdout)
+            if state:
+                self._persistent_vars.update(state)
+
+        if len(stdout) > self._max_output:
+            stdout = stdout[: self._max_output] + "\n... [OUTPUT TRUNCATED]"
+
+        return ExecutionResult(
+            stdout=stdout,
+            stderr=result.stderr,
+            exit_code=result.exit_code,
+            timed_out=result.timed_out,
+            runtime_ms=result.runtime_ms,
+        )
+
+    def _build_subprocess_code(self, code: str) -> str:
+        """Wrap user code with helpers and state persistence for subprocess mode."""
+        context_literal = json.dumps(self._env.prompt_var)
+        prelude_lines = [
+            "import re, json, math, collections, itertools, string",
+            f"context = {context_literal}",
+            "def peek(start, end):\n    return context[start:end]",
+            "def search(pattern):\n    return re.findall(pattern, context)",
+            "def partition(strategy='structural'):\n"
+            "    if strategy == 'structural':\n"
+            "        parts = [p.strip() for p in re.split(r'\\n\\s*\\n', context) if p.strip()]\n"
+            "        return parts if parts else [context]\n"
+            "    return partition('structural')",
+            "def llm_query(prompt, model=None):\n    return '[LLM QUERY DISABLED IN SUBPROCESS]'",
+        ]
+
+        # Restore persistent vars (JSON-serializable only)
+        for key, value in self._persistent_vars.items():
+            if key.startswith("_"):
+                continue
+            try:
+                encoded = json.dumps(value)
+            except (TypeError, ValueError):
+                continue
+            prelude_lines.append(f"{key} = {encoded}")
+
+        footer = [
+            "import json as __rde_json",
+            "__rde_state = {}",
+            "__rde_skip = {'context', 'peek', 'search', 'partition', 'llm_query'}",
+            "for __k, __v in globals().items():",
+            "    if __k.startswith('_') or __k in __rde_skip:",
+            "        continue",
+            "    try:",
+            "        __rde_json.dumps(__v)",
+            "        __rde_state[__k] = __v",
+            "    except Exception:",
+            "        pass",
+            "print('__RDE_STATE__START__')",
+            "print(__rde_json.dumps(__rde_state))",
+            "print('__RDE_STATE__END__')",
+        ]
+
+        return "\n".join(prelude_lines) + "\n" + code + "\n" + "\n".join(footer)
+
+    @staticmethod
+    def _extract_state_from_stdout(stdout: str) -> tuple[str, dict[str, Any] | None]:
+        """Extract persisted state dump from stdout."""
+        pattern = r"__RDE_STATE__START__\\n(.*?)\\n__RDE_STATE__END__"
+        match = re.search(pattern, stdout, re.DOTALL)
+        if not match:
+            return stdout, None
+        json_blob = match.group(1).strip()
+        cleaned = re.sub(pattern, "", stdout, flags=re.DOTALL).strip()
+        try:
+            state = json.loads(json_blob)
+            if isinstance(state, dict):
+                return cleaned, state
+        except Exception:
+            pass
+        return cleaned, None
 
     def _save_persistent_vars(self, namespace: dict[str, Any]) -> None:
         """Save user-defined variables from namespace for next iteration."""

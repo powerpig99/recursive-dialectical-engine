@@ -104,12 +104,14 @@ def test_supports_model():
     assert provider.supports_model("local")
     assert provider.supports_model("qwen3-8b")
     assert provider.supports_model("QWEN3-8B")  # Case insensitive
+    assert provider.supports_model("Qwen/Qwen3-8B-MLX-8bit")
     assert provider.supports_model("vllm-local")
     assert provider.supports_model("mlx-model")
     assert provider.supports_model("~/Models/something")
     assert provider.supports_model("/absolute/path")
     assert not provider.supports_model("gpt-5")
     assert not provider.supports_model("claude-sonnet")
+    assert not provider.supports_model("openrouter/auto")
 
 
 def test_supports_model_default():

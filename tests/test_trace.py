@@ -80,6 +80,29 @@ async def test_execute_returns_trace_result():
 
 
 @pytest.mark.asyncio
+async def test_execute_records_cost_in_budget():
+    """Estimated cost is recorded against the recursion budget."""
+
+    class CostRouter(FakeRouter):
+        async def complete(self, messages, model, temperature=0.7, max_tokens=4096, response_format=None):
+            return LLMResponse(
+                content="ok",
+                model=model,
+                latency_ms=1.0,
+                estimated_cost=1.25,
+            )
+
+    env = ContextEnvironment("What is 2+2?")
+    budget = RecursionBudget(max_total_calls=10)
+    executor = TraceExecutor(CostRouter(), env, budget=budget)
+
+    await executor.execute(_default_trace_config(), "test-model")
+
+    assert budget.total_calls == 1
+    assert budget.total_cost_usd == pytest.approx(1.25)
+
+
+@pytest.mark.asyncio
 async def test_execute_extracts_boxed_answer():
     """Boxed answers are parsed from raw output."""
     router = FakeRouter("The result is \\boxed{42}.")

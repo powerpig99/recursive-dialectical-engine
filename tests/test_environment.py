@@ -89,6 +89,43 @@ def test_spawn_sub_lm_no_router_raises():
         asyncio.run(env.spawn_sub_lm("sub-problem"))
 
 
+@pytest.mark.asyncio
+async def test_spawn_sub_lm_records_cost():
+    """spawn_sub_lm increments budget cost when provider reports it."""
+    from rde.models import ModelConfig, RecursionBudget
+    from rde.providers.base import BaseProvider, LLMResponse
+    from rde.providers.router import ModelRouter
+
+    class CostProvider(BaseProvider):
+        async def complete(self, messages, model, **kwargs):
+            return LLMResponse(
+                content="ok",
+                model=model,
+                latency_ms=5.0,
+                estimated_cost=0.75,
+            )
+
+        def supports_model(self, model: str) -> bool:
+            return True
+
+    config = ModelConfig()
+    router = ModelRouter(config)
+    router._providers = {"test": CostProvider()}
+
+    budget = RecursionBudget(max_total_calls=10)
+    env = ContextEnvironment(
+        SAMPLE_PROMPT,
+        router=router,
+        budget=budget,
+        sub_lm_models=["test-model"],
+    )
+
+    await env.spawn_sub_lm("sub-problem")
+
+    assert budget.total_calls == 1
+    assert budget.total_cost_usd == pytest.approx(0.75)
+
+
 def test_store_iteration():
     env = ContextEnvironment("test")
     assert env.current_iteration == 0

@@ -56,7 +56,7 @@ class TraceExecutor:
 
             # Track this LLM call against the budget
             if self.budget is not None:
-                self.budget.record_call()
+                self.budget.record_call(response.estimated_cost)
 
             extracted = extract_boxed(response.content)
 
@@ -88,7 +88,7 @@ class TraceExecutor:
                         max_tokens=4096,
                     )
                     if self.budget is not None:
-                        self.budget.record_call()
+                        self.budget.record_call(response.estimated_cost)
 
                     extracted = extract_boxed(response.content)
                     return TraceResult(
@@ -214,7 +214,7 @@ class TraceExecutor:
                     max_tokens=4096,
                 )
                 if self.budget is not None:
-                    self.budget.record_call()
+                    self.budget.record_call(response.estimated_cost)
 
                 total_latency_ms += response.latency_ms
                 assistant_content = response.content
