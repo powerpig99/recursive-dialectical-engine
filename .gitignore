@@ -36,3 +36,6 @@ htmlcov/
 *.bin
 *.safetensors
 *.gguf
+
+# Reference papers (copyrighted)
+reference/
