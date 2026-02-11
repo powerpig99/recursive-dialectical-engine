@@ -148,7 +148,6 @@ BaseProvider (abstract)
   ├── GoogleProvider     → Gemini models (COSTS dict, per-token pricing)
   ├── XAIProvider        → Grok models
   ├── KimiProvider       → Moonshot models
-  ├── HuggingFaceProvider → HF Inference API
   ├── LocalOpenAIProvider → vLLM-mlx / LM Studio / Ollama (httpx, async, cost=0)
   └── MLXProvider (deprecated) → Direct in-process MLX (serial, no batching)
 

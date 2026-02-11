@@ -1,12 +1,38 @@
 # Recursive Dialectical Engine (RDE)
 
+> **Note**: This project has been superseded by the [Context Engine](https://github.com/powerpig99/context-engine), which derives from first principles what this project built through iterative engineering. The RDE remains archived as the most complete implementation of the ideas that led to the Context Engine. Its test suites, benchmarks, ablation studies, and training pipeline remain useful as evaluation infrastructure. See [Context Engine](https://github.com/powerpig99/context-engine) for active development.
+
+---
+
 Multi-model dialectical reasoning with recursive arbitration.
 
 RDE composes multiple LLM traces into a single resolution through causal arbitration. Each trace operates independently — different model, different role, different perspective on the same externalized context. Where they disagree, a recursive arbiter resolves through causal necessity, not voting. What the resolution necessarily obscures is reported as shadows.
 
-## Core Claim
+## What This Project Discovered
 
-A single LLM call collapses the problem's dimensionality into one projection. RDE preserves orthogonality by running independent traces across models and composing their outputs through an arbiter that demands causal chains, not majority agreement.
+The RDE was the second iteration in the lineage [Dialectical-TTS](https://github.com/powerpig99/Dialectical-TTS) → RDE → [Context Engine](https://github.com/powerpig99/context-engine). Through building and benchmarking it, several insights emerged:
+
+1. **Cross-model traces produce genuinely different collapses.** Same-model traces with different prompts share the same weight manifold—their independence is cosmetic. Different model families collapse differently because their weight geometries differ. This is empirically validated in the ablation studies.
+
+2. **Everything is context engineering.** The dialectical structure, the orchestrator, the arbiter, the REPL environment—all of these are ways of constructing context for the same token prediction mechanism. The mechanism never changed. The [Context Engine](https://github.com/powerpig99/context-engine) takes this as its starting point.
+
+3. **More context with the right ground adds clarity, never noise.** The REPL/context externalization approach treated context as data to manage. The deeper insight: context is projections, and with the right generative principle, every additional piece of context is clarifying signal. What we call "noise" is signal orthogonal to the current question—a limitation of the system's interpretive capacity, not a property of the data.
+
+4. **Stopping, not converging.** The system never finds truth. It exhausts what it can explore from its finite weight manifolds and presents the shadows to a human who operates in a deeper level of potentiality.
+
+These insights, combined with the [Not a ToE](https://github.com/powerpig99/ontological-clarity), were traced to their generative ground and rebuilt as the Context Engine.
+
+## What Remains Useful
+
+The RDE's engineering infrastructure carries forward:
+
+- **Benchmark suites** (OOLONG, S-NIAH, OOLONG-Pairs) — applicable to any reasoning system
+- **Ablation harness** (10 ablation scripts) — systematic comparison methodology
+- **Multi-provider routing** (7 providers) — reusable API abstraction
+- **Training data pipeline** — distillation strategies for single-model fine-tuning
+- **291 unit tests** — validation patterns
+
+---
 
 ## Installation
 
@@ -36,7 +62,6 @@ export OPENAI_API_KEY="..."
 export GOOGLE_API_KEY="..."
 export XAI_API_KEY="..."          # optional: xAI/Grok
 export KIMI_API_KEY="..."         # optional: Moonshot/Kimi
-export HUGGINGFACE_API_KEY="..."  # optional: HuggingFace Inference
 ```
 
 RDE auto-discovers available providers based on which keys are set. At least one key is required.
@@ -100,7 +125,7 @@ async def main():
     config = ModelConfig(
         trace_models=["claude-sonnet-4-5-20250929", "gemini-2.5-pro", "grok-3"],
         arbiter_temperature=0.1,       # low temp for deterministic arbitration
-        orchestrator_temperature=0.3,   # moderate temp for trace design
+        orchestrator_temperature=0.3,   # moderate temp for creative trace design
     )
 
     async with DialecticalEngine(config) as engine:
@@ -198,7 +223,6 @@ RDE supports 7 model providers:
 | Google | Gemini 2.5 Pro/Flash | `GOOGLE_API_KEY` |
 | xAI | Grok-3 | `XAI_API_KEY` |
 | Moonshot | Kimi models | `KIMI_API_KEY` |
-| HuggingFace | Inference API models | `HUGGINGFACE_API_KEY` |
 | Local (vLLM-mlx) | Any OpenAI-compatible local server | `LOCAL_OPENAI_BASE_URL` |
 | MLX (deprecated) | Direct in-process MLX | (local, no key) |
 
@@ -338,6 +362,14 @@ Three distillation strategies:
 - **Full Dialectic**: Problem → all perspectives + synthesis
 - **Role-Specific**: (Problem + role) → individual trace output
 
+## Theoretical Foundation
+
+This project is grounded in the [Not a ToE](https://github.com/powerpig99/ontological-clarity):
+
+> *Everything is layered projections of the infinite-dimensional orthogonal binary hyperspace from Nothing—the infinitely self-referencing Contradiction.*
+
+Everything else can be derived from it logically. The [Context Engine](https://github.com/powerpig99/context-engine) is that derivation applied to language model reasoning—rebuilding from the generative principle rather than accumulating improvements on existing architectures.
+
 ## Project Structure
 
 ```
@@ -351,7 +383,7 @@ rde/
 ├── models.py           # Pydantic data models
 ├── cli.py              # CLI entry point
 ├── benchmarks/         # OOLONG, S-NIAH, OOLONG-Pairs evaluation
-├── providers/          # 8 model providers + router
+├── providers/          # 7 model providers + router
 ├── prompts/            # System prompts and templates
 ├── sandbox/            # Code execution (local, Modal, E2B)
 ├── training/           # Training data pipeline
